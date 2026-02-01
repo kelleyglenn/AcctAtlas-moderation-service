@@ -41,7 +41,7 @@ The Moderation Service manages the content quality control workflow for Accounta
 ## Domain Model
 
 ```
-ModerationItem
+ModerationItem (temporal - sys_period tracks history)
 ├── id: UUID
 ├── contentType: ContentType (VIDEO, LOCATION)
 ├── contentId: UUID
@@ -51,10 +51,9 @@ ModerationItem
 ├── reviewerId: UUID (nullable)
 ├── reviewedAt: Instant (nullable)
 ├── rejectionReason: String (nullable)
-├── createdAt: Instant
-└── updatedAt: Instant
+└── sysPeriod: tstzrange  // lower bound = created, NULL upper = current
 
-AbuseReport
+AbuseReport (temporal - sys_period tracks history)
 ├── id: UUID
 ├── contentType: ContentType
 ├── contentId: UUID
@@ -64,10 +63,9 @@ AbuseReport
 ├── status: ReportStatus (OPEN, RESOLVED, DISMISSED)
 ├── resolvedBy: UUID (nullable)
 ├── resolution: String (nullable)
-├── createdAt: Instant
-└── resolvedAt: Instant (nullable)
+└── sysPeriod: tstzrange  // lower bound = created, NULL upper = current
 
-AuditLogEntry
+AuditLogEntry (non-temporal - append-only/immutable)
 ├── id: UUID
 ├── actorId: UUID
 ├── action: String
@@ -150,11 +148,13 @@ Automatic promotion from NEW to TRUSTED:
 ```java
 public boolean checkTrustPromotion(UUID userId) {
     User user = userService.getUser(userId);
+    UserStats stats = userService.getUserStats(userId);
 
     if (user.getTrustTier() != TrustTier.NEW) {
         return false;
     }
 
+    // Account creation time derived from lower bound of sys_period
     Duration accountAge = Duration.between(user.getCreatedAt(), Instant.now());
     int recentRejections = moderationRepository
         .countRejectionsSince(userId, Instant.now().minus(30, ChronoUnit.DAYS));
@@ -162,7 +162,7 @@ public boolean checkTrustPromotion(UUID userId) {
         .countActiveReportsAgainst(userId);
 
     return accountAge.toDays() >= 30
-        && user.getApprovedCount() >= 10
+        && stats.getApprovedCount() >= 10
         && recentRejections == 0
         && activeReports == 0;
 }
