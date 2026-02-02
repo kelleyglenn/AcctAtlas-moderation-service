@@ -33,7 +33,7 @@ The Moderation Service manages the content quality control workflow for Accounta
 
 | Document | Status | Description |
 |----------|--------|-------------|
-| [api-specification.yaml](api-specification.yaml) | Planned | OpenAPI 3.0 specification |
+| [api-specification.yaml](api-specification.yaml) | Complete | OpenAPI 3.1 specification |
 | [database-schema.md](database-schema.md) | Planned | Schema documentation |
 | [moderation-workflow.md](moderation-workflow.md) | Planned | Workflow diagrams |
 | [trust-progression.md](trust-progression.md) | Planned | Trust tier rules |

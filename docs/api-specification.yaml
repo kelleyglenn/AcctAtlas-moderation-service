@@ -1,0 +1,797 @@
+openapi: 3.1.0
+info:
+  title: AccountabilityAtlas Moderation Service API
+  version: 1.0.0
+  description: |
+    Content moderation and quality control for AccountabilityAtlas.
+    Manages the moderation queue, content approval/rejection, abuse reports,
+    and trust tier progression logic.
+
+    ## Access Patterns
+    - **Public (via Gateway)**: `https://api.accountabilityatlas.com/api/v1/moderation/...`
+    - **Internal (service-to-service)**: `http://moderation-service:8085/moderation/...`
+
+    Most endpoints require MODERATOR or ADMIN trust tier.
+  contact:
+    name: AccountabilityAtlas Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8085
+    description: Local development (direct)
+  - url: http://moderation-service:8085
+    description: Internal service mesh (Kubernetes/ECS service discovery)
+  - url: https://api.accountabilityatlas.com/api/v1
+    description: Production (via API Gateway)
+
+tags:
+  - name: Queue
+    description: Moderation queue management
+  - name: Reports
+    description: Abuse report handling
+
+security:
+  - bearerAuth: []
+
+paths:
+  /moderation/queue:
+    get:
+      operationId: listModerationQueue
+      summary: Get pending moderation items
+      description: |
+        Returns paginated list of items awaiting moderation review.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ModerationStatus'
+          description: "Filter by status (default: PENDING)"
+        - name: contentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ContentType'
+          description: Filter by content type
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, priority]
+            default: createdAt
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Sort direction (asc = oldest first for FIFO processing)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Moderation queue items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationQueueResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /moderation/queue/{id}:
+    get:
+      operationId: getModerationItem
+      summary: Get moderation item details
+      description: |
+        Returns full details of a moderation item including content preview.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Moderation item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItemDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /moderation/queue/{id}/approve:
+    post:
+      operationId: approveContent
+      summary: Approve moderation item
+      description: |
+        Approve content for publication. Publishes VideoApproved event.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        '200':
+          description: Content approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItemDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Item already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "ALREADY_PROCESSED"
+                message: "This item has already been reviewed"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /moderation/queue/{id}/reject:
+    post:
+      operationId: rejectContent
+      summary: Reject moderation item
+      description: |
+        Reject content with a reason. Publishes VideoRejected event.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Content rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItemDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Item already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "ALREADY_PROCESSED"
+                message: "This item has already been reviewed"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /moderation/queue/stats:
+    get:
+      operationId: getQueueStats
+      summary: Get moderation queue statistics
+      description: |
+        Returns current queue statistics for moderator dashboard.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      responses:
+        '200':
+          description: Queue statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /moderation/reports:
+    get:
+      operationId: listAbuseReports
+      summary: Get abuse reports
+      description: |
+        Returns paginated list of abuse reports.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Reports]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+          description: "Filter by status (default: OPEN)"
+        - name: contentType
+          in: query
+          schema:
+            $ref: '#/components/schemas/ContentType'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Abuse reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbuseReportListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      operationId: submitAbuseReport
+      summary: Submit an abuse report
+      description: |
+        Report content that violates community guidelines.
+        Available to any authenticated user.
+      tags: [Reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAbuseReportRequest'
+      responses:
+        '201':
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbuseReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Content not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "CONTENT_NOT_FOUND"
+                message: "The reported content does not exist"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '409':
+          description: Already reported by this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "ALREADY_REPORTED"
+                message: "You have already reported this content"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /moderation/reports/{id}:
+    get:
+      operationId: getAbuseReport
+      summary: Get abuse report details
+      description: Requires MODERATOR or ADMIN trust tier.
+      tags: [Reports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Abuse report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbuseReportDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /moderation/reports/{id}/resolve:
+    post:
+      operationId: resolveAbuseReport
+      summary: Resolve an abuse report
+      description: |
+        Mark report as resolved with action taken.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Reports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveReportRequest'
+      responses:
+        '200':
+          description: Report resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbuseReportDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /moderation/reports/{id}/dismiss:
+    post:
+      operationId: dismissAbuseReport
+      summary: Dismiss an abuse report
+      description: |
+        Dismiss report as unfounded or invalid.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Reports]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DismissReportRequest'
+      responses:
+        '200':
+          description: Report dismissed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbuseReportDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token from user-service.
+
+  schemas:
+    # Enums
+    ContentType:
+      type: string
+      enum: [VIDEO, LOCATION]
+
+    ModerationStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    ReportStatus:
+      type: string
+      enum: [OPEN, RESOLVED, DISMISSED]
+
+    AbuseReason:
+      type: string
+      enum: [SPAM, INAPPROPRIATE, COPYRIGHT, MISINFORMATION, OTHER]
+      description: |
+        - `SPAM`: Promotional or irrelevant content
+        - `INAPPROPRIATE`: Offensive or harmful content
+        - `COPYRIGHT`: DMCA or IP violation
+        - `MISINFORMATION`: Factually incorrect claims
+        - `OTHER`: Other violations
+
+    # Core domain objects
+    ModerationItem:
+      type: object
+      required: [id, contentType, contentId, submitterId, status, priority, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentId:
+          type: string
+          format: uuid
+        submitterId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ModerationStatus'
+        priority:
+          type: integer
+          description: Higher = more urgent
+        reviewerId:
+          type: string
+          format: uuid
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ModerationItemDetail:
+      allOf:
+        - $ref: '#/components/schemas/ModerationItem'
+        - type: object
+          properties:
+            submitter:
+              $ref: '#/components/schemas/UserSummary'
+            reviewer:
+              $ref: '#/components/schemas/UserSummary'
+            contentPreview:
+              $ref: '#/components/schemas/ContentPreview'
+
+    ContentPreview:
+      type: object
+      description: Preview of the content being moderated
+      properties:
+        title:
+          type: string
+        thumbnailUrl:
+          type: string
+          format: uri
+        youtubeId:
+          type: string
+          description: For VIDEO content type
+        displayName:
+          type: string
+          description: For LOCATION content type
+
+    AbuseReport:
+      type: object
+      required: [id, contentType, contentId, reporterId, reason, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentId:
+          type: string
+          format: uuid
+        reporterId:
+          type: string
+          format: uuid
+        reason:
+          $ref: '#/components/schemas/AbuseReason'
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        resolvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        resolution:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AbuseReportDetail:
+      allOf:
+        - $ref: '#/components/schemas/AbuseReport'
+        - type: object
+          properties:
+            reporter:
+              $ref: '#/components/schemas/UserSummary'
+            resolver:
+              $ref: '#/components/schemas/UserSummary'
+            contentPreview:
+              $ref: '#/components/schemas/ContentPreview'
+
+    UserSummary:
+      type: object
+      required: [id, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 100
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+        trustTier:
+          type: string
+          enum: [NEW, TRUSTED, MODERATOR, ADMIN]
+
+    # Request schemas
+    ApproveRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 500
+          description: Optional internal note for audit log
+
+    RejectRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Reason for rejection (shown to submitter)
+      examples:
+        - reason: "Video does not appear to involve a constitutional rights audit"
+
+    CreateAbuseReportRequest:
+      type: object
+      required: [contentType, contentId, reason]
+      properties:
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentId:
+          type: string
+          format: uuid
+        reason:
+          $ref: '#/components/schemas/AbuseReason'
+        description:
+          type: string
+          maxLength: 1000
+          description: Additional details about the violation
+      examples:
+        - contentType: "VIDEO"
+          contentId: "550e8400-e29b-41d4-a716-446655440000"
+          reason: "MISINFORMATION"
+          description: "The video title misrepresents what actually happened"
+
+    ResolveReportRequest:
+      type: object
+      required: [resolution]
+      properties:
+        resolution:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Action taken to resolve the report
+      examples:
+        - resolution: "Video removed for violating community guidelines"
+
+    DismissReportRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: Optional reason for dismissal
+      examples:
+        - reason: "Content does not violate community guidelines"
+
+    # Response schemas
+    ModerationQueueResponse:
+      type: object
+      required: [content, page, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationItem'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    AbuseReportListResponse:
+      type: object
+      required: [content, page, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AbuseReport'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+
+    QueueStatsResponse:
+      type: object
+      required: [pending, approvedToday, rejectedToday]
+      properties:
+        pending:
+          type: integer
+          minimum: 0
+          description: Items awaiting review
+        approvedToday:
+          type: integer
+          minimum: 0
+        rejectedToday:
+          type: integer
+          minimum: 0
+        avgReviewTimeMinutes:
+          type: number
+          format: float
+          description: Average time from submission to review
+
+    # Error schemas
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+        traceId:
+          type: string
+          format: uuid
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              - field: reason
+                message: must be at least 10 characters
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Access token is missing or invalid
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Forbidden:
+      description: Requires MODERATOR or ADMIN trust tier
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: FORBIDDEN
+            message: This action requires MODERATOR or ADMIN trust tier
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    NotFound:
+      description: Requested resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Moderation item not found
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMITED
+            message: Too many abuse reports submitted. Please retry later.
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
