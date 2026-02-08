@@ -213,6 +213,160 @@ paths:
                 message: "This item has already been reviewed"
                 traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 
+  /moderation/queue/{id}/video:
+    put:
+      operationId: updateVideoMetadata
+      summary: Update video metadata during moderation
+      description: |
+        Allows moderators to tweak video amendments, participants, or date during review.
+        Calls video-service internal API to apply changes.
+
+        **Status restrictions:**
+        - MODERATOR: Can only modify PENDING videos
+        - ADMIN: Can modify videos with any status
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Moderation queue item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVideoRequest'
+      responses:
+        '200':
+          description: Video metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItemDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Not authorized or video status not allowed for this role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    code: "FORBIDDEN"
+                    message: "This action requires MODERATOR or ADMIN trust tier"
+                    traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                statusNotAllowed:
+                  value:
+                    code: "STATUS_NOT_ALLOWED"
+                    message: "Moderators can only modify PENDING videos"
+                    traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /moderation/queue/{id}/locations:
+    post:
+      operationId: addVideoLocation
+      summary: Add location to video during moderation
+      description: |
+        Add a location to the video being moderated.
+        Calls video-service internal API to apply changes.
+
+        **Status restrictions:**
+        - MODERATOR: Can only modify PENDING videos
+        - ADMIN: Can modify videos with any status
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Moderation queue item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddLocationRequest'
+      responses:
+        '201':
+          description: Location added to video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItemDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Queue item or location not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Location already associated with video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "LOCATION_ALREADY_LINKED"
+                message: "This location is already associated with the video"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /moderation/queue/{id}/locations/{locationId}:
+    delete:
+      operationId: removeVideoLocation
+      summary: Remove location from video during moderation
+      description: |
+        Remove a location from the video being moderated.
+        Calls video-service internal API to apply changes.
+
+        **Status restrictions:**
+        - MODERATOR: Can only modify PENDING videos
+        - ADMIN: Can modify videos with any status
+      tags: [Queue]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Moderation queue item ID
+        - name: locationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Location ID to remove
+      responses:
+        '204':
+          description: Location removed from video
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Queue item or video-location association not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /moderation/queue/stats:
     get:
       operationId: getQueueStats
@@ -646,6 +800,52 @@ components:
           description: Optional reason for dismissal
       examples:
         - reason: "Content does not violate community guidelines"
+
+    UpdateVideoRequest:
+      type: object
+      description: |
+        Update video metadata during moderation. All fields are optional;
+        only provided fields will be updated.
+      properties:
+        amendments:
+          type: array
+          items:
+            type: string
+            enum: [FIRST, SECOND, FOURTH, FIFTH]
+          minItems: 1
+          description: Constitutional amendments featured in the video
+        participants:
+          type: array
+          items:
+            type: string
+            enum: [POLICE, GOVERNMENT, BUSINESS, CITIZEN]
+          minItems: 1
+          description: Types of participants in the encounter
+        videoDate:
+          type: string
+          format: date
+          nullable: true
+          description: When the incident occurred
+      examples:
+        - amendments: ["FIRST", "FOURTH"]
+          participants: ["POLICE", "CITIZEN"]
+          videoDate: "2025-01-15"
+
+    AddLocationRequest:
+      type: object
+      required: [locationId]
+      properties:
+        locationId:
+          type: string
+          format: uuid
+          description: ID of the location to add
+        isPrimary:
+          type: boolean
+          default: false
+          description: Set as primary location (will unset previous primary)
+      examples:
+        - locationId: "660e8400-e29b-41d4-a716-446655440001"
+          isPrimary: true
 
     # Response schemas
     ModerationQueueResponse:
