@@ -26,8 +26,19 @@ The Moderation Service manages the content quality control workflow for Accounta
 
 - **PostgreSQL**: Moderation queue, abuse reports, audit log
 - **user-service**: Trust tier queries and updates
-- **video-service**: Content details
+- **video-service**: Content details and internal APIs for video updates
 - **SQS**: Event consumption and publishing
+
+### video-service Internal APIs
+
+Used for moderation tweaks (service-to-service, no JWT):
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| PUT | /internal/videos/{id} | Update video metadata |
+| PUT | /internal/videos/{id}/status | Set APPROVED/REJECTED |
+| POST | /internal/videos/{id}/locations | Add location |
+| DELETE | /internal/videos/{id}/locations/{locId} | Remove location |
 
 ## Documentation Index
 
@@ -77,18 +88,39 @@ AuditLogEntry (non-temporal - append-only/immutable)
 
 ## API Endpoints
 
+### Queue Management
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | /moderation/queue | Moderator | Get pending items |
-| GET | /moderation/queue/{id} | Moderator | Get item details |
-| POST | /moderation/queue/{id}/approve | Moderator | Approve content |
-| POST | /moderation/queue/{id}/reject | Moderator | Reject with reason |
-| GET | /moderation/queue/stats | Moderator | Queue statistics |
-| GET | /moderation/reports | Moderator | Get abuse reports |
+| GET | /moderation/queue | Mod/Admin | Get pending items |
+| GET | /moderation/queue/{id} | Mod/Admin | Get item details |
+| POST | /moderation/queue/{id}/approve | Mod/Admin | Approve content |
+| POST | /moderation/queue/{id}/reject | Mod/Admin | Reject with reason |
+| GET | /moderation/queue/stats | Mod/Admin | Queue statistics |
+
+### Video Tweaks During Moderation
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| PUT | /moderation/queue/{id}/video | Mod/Admin | Update video metadata |
+| POST | /moderation/queue/{id}/locations | Mod/Admin | Add location to video |
+| DELETE | /moderation/queue/{id}/locations/{locId} | Mod/Admin | Remove location |
+
+**Status restrictions:**
+- **Moderators**: Can only modify videos with status = PENDING
+- **Admins**: Can modify videos with any status (PENDING, APPROVED, REJECTED)
+
+These endpoints call video-service internal APIs to apply changes.
+
+### Abuse Reports
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | /moderation/reports | Mod/Admin | Get abuse reports |
 | POST | /moderation/reports | User | Submit abuse report |
-| GET | /moderation/reports/{id} | Moderator | Get report details |
-| POST | /moderation/reports/{id}/resolve | Moderator | Resolve report |
-| POST | /moderation/reports/{id}/dismiss | Moderator | Dismiss report |
+| GET | /moderation/reports/{id} | Mod/Admin | Get report details |
+| POST | /moderation/reports/{id}/resolve | Mod/Admin | Resolve report |
+| POST | /moderation/reports/{id}/dismiss | Mod/Admin | Dismiss report |
 
 ## Query Parameters (GET /moderation/queue)
 
