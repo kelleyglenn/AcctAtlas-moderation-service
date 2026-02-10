@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: moderation-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5435/moderation
+    username: moderation
+    password: moderation
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: moderation
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    schemas:
+      - moderation
+    default-schema: moderation
+
+server:
+  port: 8085
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+app:
+  video-service:
+    base-url: http://localhost:8082
+  user-service:
+    base-url: http://localhost:8080
