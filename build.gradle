@@ -56,6 +56,7 @@ dependencies {
     testImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
     testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
     testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+    testImplementation "com.squareup.okhttp3:mockwebserver:${okhttpVersion}"
 }
 
 // ---- OpenAPI Generator ----
