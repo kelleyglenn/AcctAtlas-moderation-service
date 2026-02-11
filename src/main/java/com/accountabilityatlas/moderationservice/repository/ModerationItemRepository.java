@@ -32,7 +32,9 @@ public interface ModerationItemRepository extends JpaRepository<ModerationItem, 
   long countByStatusAndReviewedAtGreaterThanEqual(ModerationStatus status, Instant since);
 
   @Query(
-      "SELECT AVG(EXTRACT(EPOCH FROM (m.reviewedAt - m.createdAt)) / 60.0) "
-          + "FROM ModerationItem m WHERE m.reviewedAt IS NOT NULL")
+      nativeQuery = true,
+      value =
+          "SELECT AVG(EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 60.0) "
+              + "FROM moderation.moderation_items WHERE reviewed_at IS NOT NULL")
   Double calculateAverageReviewTimeMinutes();
 }

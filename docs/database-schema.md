@@ -346,12 +346,13 @@ Uses `idx_moderation_items_submitter_id`. Supports trust tier demotion logic (to
 ### Calculate average review time
 
 ```java
-@Query("SELECT AVG(EXTRACT(EPOCH FROM (m.reviewedAt - m.createdAt)) / 60.0) "
-    + "FROM ModerationItem m WHERE m.reviewedAt IS NOT NULL")
+@Query(nativeQuery = true, value =
+    "SELECT AVG(EXTRACT(EPOCH FROM (reviewed_at - created_at)) / 60.0) "
+    + "FROM moderation.moderation_items WHERE reviewed_at IS NOT NULL")
 Double calculateAverageReviewTimeMinutes();
 ```
 
-Used for dashboard metrics to track moderator performance.
+Uses native query for PostgreSQL's `EXTRACT(EPOCH FROM ...)` syntax. Used for dashboard metrics to track moderator performance.
 
 ### Find open abuse reports
 
