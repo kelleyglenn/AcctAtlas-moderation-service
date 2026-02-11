@@ -1,8 +1,10 @@
 package com.accountabilityatlas.moderationservice.service;
 
+import com.accountabilityatlas.moderationservice.client.VideoServiceClient;
 import com.accountabilityatlas.moderationservice.domain.ContentType;
 import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.domain.ModerationStatus;
+import com.accountabilityatlas.moderationservice.event.ModerationEventPublisher;
 import com.accountabilityatlas.moderationservice.exception.ItemAlreadyReviewedException;
 import com.accountabilityatlas.moderationservice.exception.ModerationItemNotFoundException;
 import com.accountabilityatlas.moderationservice.repository.ModerationItemRepository;
@@ -12,6 +14,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable;
@@ -20,10 +23,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ModerationService {
 
   private final ModerationItemRepository moderationItemRepository;
   private final AuditLogService auditLogService;
+  private final VideoServiceClient videoServiceClient;
+  private final ModerationEventPublisher eventPublisher;
+  private final TrustPromotionService trustPromotionService;
+  private final TrustDemotionService trustDemotionService;
 
   @Transactional
   public ModerationItem createItem(ContentType contentType, UUID contentId, UUID submitterId) {
@@ -65,7 +73,31 @@ public class ModerationService {
     item.setReviewerId(reviewerId);
     item.setReviewedAt(Instant.now());
     auditLogService.logAction(reviewerId, "APPROVE", "MODERATION_ITEM", id, null);
-    return moderationItemRepository.save(item);
+    ModerationItem saved = moderationItemRepository.save(item);
+
+    // Update video status in video-service
+    try {
+      videoServiceClient.updateVideoStatus(item.getContentId(), "APPROVED");
+    } catch (Exception e) {
+      log.error(
+          "Failed to update video {} status to APPROVED: {}", item.getContentId(), e.getMessage());
+    }
+
+    // Publish approval event
+    eventPublisher.publishVideoApproved(item.getContentId(), reviewerId);
+
+    // Check if submitter qualifies for trust tier promotion
+    try {
+      boolean promoted = trustPromotionService.checkAndPromote(item.getSubmitterId());
+      if (promoted) {
+        log.info("User {} was promoted after approval of video {}", item.getSubmitterId(), id);
+      }
+    } catch (Exception e) {
+      log.error(
+          "Failed to check trust promotion for user {}: {}", item.getSubmitterId(), e.getMessage());
+    }
+
+    return saved;
   }
 
   @Transactional
@@ -79,7 +111,31 @@ public class ModerationService {
     item.setReviewedAt(Instant.now());
     item.setRejectionReason(reason);
     auditLogService.logAction(reviewerId, "REJECT", "MODERATION_ITEM", id, reason);
-    return moderationItemRepository.save(item);
+    ModerationItem saved = moderationItemRepository.save(item);
+
+    // Update video status in video-service
+    try {
+      videoServiceClient.updateVideoStatus(item.getContentId(), "REJECTED");
+    } catch (Exception e) {
+      log.error(
+          "Failed to update video {} status to REJECTED: {}", item.getContentId(), e.getMessage());
+    }
+
+    // Publish rejection event
+    eventPublisher.publishVideoRejected(item.getContentId(), reviewerId, reason);
+
+    // Check if submitter should be demoted
+    try {
+      boolean demoted = trustDemotionService.checkAndDemote(item.getSubmitterId());
+      if (demoted) {
+        log.info("User {} was demoted after rejection of video {}", item.getSubmitterId(), id);
+      }
+    } catch (Exception e) {
+      log.error(
+          "Failed to check trust demotion for user {}: {}", item.getSubmitterId(), e.getMessage());
+    }
+
+    return saved;
   }
 
   @Transactional(readOnly = true)

@@ -9,6 +9,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 /**
@@ -100,6 +101,17 @@ public class TrustDemotionService {
     }
 
     // Determine the demotion reason for logging
+    String demotionReason = getDemotionReason(recentRejections, activeReports);
+
+    log.info(
+        "User {} meets demotion criteria due to {}, demoting from TRUSTED to NEW",
+        userId,
+        demotionReason);
+    userServiceClient.updateTrustTier(userId, NEW_TIER, AUTO_DEMOTION_REASON);
+    return true;
+  }
+
+  private static @NonNull String getDemotionReason(int recentRejections, int activeReports) {
     String demotionReason;
     if (recentRejections >= DEMOTION_REJECTION_THRESHOLD
         && activeReports >= DEMOTION_REPORT_THRESHOLD) {
@@ -117,12 +129,6 @@ public class TrustDemotionService {
           String.format(
               "%d active abuse reports (threshold: %d)", activeReports, DEMOTION_REPORT_THRESHOLD);
     }
-
-    log.info(
-        "User {} meets demotion criteria due to {}, demoting from TRUSTED to NEW",
-        userId,
-        demotionReason);
-    userServiceClient.updateTrustTier(userId, NEW_TIER, AUTO_DEMOTION_REASON);
-    return true;
+    return demotionReason;
   }
 }
