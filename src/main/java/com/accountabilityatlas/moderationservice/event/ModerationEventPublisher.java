@@ -4,37 +4,36 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Component;
 
-/**
- * Publishes moderation-related events using Spring's ApplicationEventPublisher.
- *
- * <p>This is a local development solution that publishes events within the application context. In
- * production, events will be published to SQS for inter-service communication.
- */
+/** Publishes moderation-related events to SQS via Spring Cloud Stream. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ModerationEventPublisher {
 
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private static final String MODERATION_EVENT_BINDING = "moderationEvent-out-0";
+
+  private final StreamBridge streamBridge;
 
   /**
-   * Publishes a VideoApprovedEvent.
+   * Publishes a VideoApprovedEvent to the moderation-events queue.
    *
    * @param videoId the ID of the approved video
    * @param reviewerId the ID of the moderator who approved the video
    */
   public void publishVideoApproved(UUID videoId, UUID reviewerId) {
     VideoApprovedEvent event = new VideoApprovedEvent(videoId, reviewerId, Instant.now());
-    log.debug("Publishing VideoApprovedEvent: videoId={}, reviewerId={}", videoId, reviewerId);
-    applicationEventPublisher.publishEvent(event);
-    log.info("Published VideoApprovedEvent for video {}", videoId);
+    log.info("Publishing VideoApprovedEvent to SQS: videoId={}", videoId);
+    boolean sent = streamBridge.send(MODERATION_EVENT_BINDING, event);
+    if (!sent) {
+      log.error("Failed to publish VideoApprovedEvent for video {}", videoId);
+    }
   }
 
   /**
-   * Publishes a VideoRejectedEvent.
+   * Publishes a VideoRejectedEvent to the moderation-events queue.
    *
    * @param videoId the ID of the rejected video
    * @param reviewerId the ID of the moderator who rejected the video
@@ -42,12 +41,10 @@ public class ModerationEventPublisher {
    */
   public void publishVideoRejected(UUID videoId, UUID reviewerId, String reason) {
     VideoRejectedEvent event = new VideoRejectedEvent(videoId, reviewerId, reason, Instant.now());
-    log.debug(
-        "Publishing VideoRejectedEvent: videoId={}, reviewerId={}, reason={}",
-        videoId,
-        reviewerId,
-        reason);
-    applicationEventPublisher.publishEvent(event);
-    log.info("Published VideoRejectedEvent for video {}", videoId);
+    log.info("Publishing VideoRejectedEvent to SQS: videoId={}", videoId);
+    boolean sent = streamBridge.send(MODERATION_EVENT_BINDING, event);
+    if (!sent) {
+      log.error("Failed to publish VideoRejectedEvent for video {}", videoId);
+    }
   }
 }

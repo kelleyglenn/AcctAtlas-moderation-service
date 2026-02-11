@@ -1,7 +1,10 @@
 package com.accountabilityatlas.moderationservice.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,12 +14,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.cloud.stream.function.StreamBridge;
 
 @ExtendWith(MockitoExtension.class)
 class ModerationEventPublisherTest {
 
-  @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private StreamBridge streamBridge;
 
   @Captor private ArgumentCaptor<Object> eventCaptor;
 
@@ -24,20 +27,21 @@ class ModerationEventPublisherTest {
 
   @BeforeEach
   void setUp() {
-    moderationEventPublisher = new ModerationEventPublisher(applicationEventPublisher);
+    moderationEventPublisher = new ModerationEventPublisher(streamBridge);
   }
 
   @Test
-  void publishVideoApproved_publishesEventWithCorrectFields() {
+  void publishVideoApproved_sendsToStreamBridge() {
     // Arrange
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
+    when(streamBridge.send(eq("moderationEvent-out-0"), any())).thenReturn(true);
 
     // Act
     moderationEventPublisher.publishVideoApproved(videoId, reviewerId);
 
     // Assert
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    verify(streamBridge).send(eq("moderationEvent-out-0"), eventCaptor.capture());
     Object capturedEvent = eventCaptor.getValue();
 
     assertThat(capturedEvent).isInstanceOf(VideoApprovedEvent.class);
@@ -48,17 +52,18 @@ class ModerationEventPublisherTest {
   }
 
   @Test
-  void publishVideoRejected_publishesEventWithCorrectFields() {
+  void publishVideoRejected_sendsToStreamBridge() {
     // Arrange
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
     String reason = "Inappropriate content";
+    when(streamBridge.send(eq("moderationEvent-out-0"), any())).thenReturn(true);
 
     // Act
     moderationEventPublisher.publishVideoRejected(videoId, reviewerId, reason);
 
     // Assert
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    verify(streamBridge).send(eq("moderationEvent-out-0"), eventCaptor.capture());
     Object capturedEvent = eventCaptor.getValue();
 
     assertThat(capturedEvent).isInstanceOf(VideoRejectedEvent.class);
