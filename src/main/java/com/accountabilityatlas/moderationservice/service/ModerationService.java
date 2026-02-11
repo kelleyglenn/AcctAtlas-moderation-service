@@ -27,6 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ModerationService {
 
+  public static final String MODERATION_ITEM = "MODERATION_ITEM";
+  public static final String ACTION_APPROVE = "APPROVE";
+  public static final String ACTION_REJECT = "REJECT";
+  public static final String ACTION_AUTO_APPROVE = "AUTO_APPROVE";
+  public static final String STATUS_APPROVED = "APPROVED";
+  public static final String STATUS_REJECTED = "REJECTED";
   private final ModerationItemRepository moderationItemRepository;
   private final AuditLogService auditLogService;
   private final VideoServiceClient videoServiceClient;
@@ -68,12 +74,12 @@ public class ModerationService {
     item.setStatus(ModerationStatus.APPROVED);
     item.setReviewerId(reviewerId);
     item.setReviewedAt(Instant.now());
-    auditLogService.logAction(reviewerId, "APPROVE", "MODERATION_ITEM", id, null);
+    auditLogService.logAction(reviewerId, ACTION_APPROVE, MODERATION_ITEM, id, null);
     ModerationItem saved = moderationItemRepository.save(item);
 
     // Update video status in video-service
     try {
-      videoServiceClient.updateVideoStatus(item.getContentId(), "APPROVED");
+      videoServiceClient.updateVideoStatus(item.getContentId(), STATUS_APPROVED);
     } catch (Exception e) {
       log.error(
           "Failed to update video {} status to APPROVED: {}", item.getContentId(), e.getMessage());
@@ -106,12 +112,12 @@ public class ModerationService {
     item.setReviewerId(reviewerId);
     item.setReviewedAt(Instant.now());
     item.setRejectionReason(reason);
-    auditLogService.logAction(reviewerId, "REJECT", "MODERATION_ITEM", id, reason);
+    auditLogService.logAction(reviewerId, ACTION_REJECT, MODERATION_ITEM, id, reason);
     ModerationItem saved = moderationItemRepository.save(item);
 
     // Update video status in video-service
     try {
-      videoServiceClient.updateVideoStatus(item.getContentId(), "REJECTED");
+      videoServiceClient.updateVideoStatus(item.getContentId(), STATUS_REJECTED);
     } catch (Exception e) {
       log.error(
           "Failed to update video {} status to REJECTED: {}", item.getContentId(), e.getMessage());
@@ -183,13 +189,13 @@ public class ModerationService {
         moderationItemRepository.save(item);
 
         // Update video status
-        videoServiceClient.updateVideoStatus(item.getContentId(), "APPROVED");
+        videoServiceClient.updateVideoStatus(item.getContentId(), STATUS_APPROVED);
 
         // Publish approval event
         eventPublisher.publishVideoApproved(item.getContentId(), systemReviewerId);
 
         auditLogService.logAction(
-            systemReviewerId, "AUTO_APPROVE", "MODERATION_ITEM", item.getId(), "trust_tier_upgrade");
+            systemReviewerId, ACTION_AUTO_APPROVE, MODERATION_ITEM, item.getId(), "trust_tier_upgrade");
         approved++;
       } catch (Exception e) {
         log.error("Failed to auto-approve item {}: {}", item.getId(), e.getMessage());
