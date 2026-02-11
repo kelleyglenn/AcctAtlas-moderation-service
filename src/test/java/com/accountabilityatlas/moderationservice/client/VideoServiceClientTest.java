@@ -164,4 +164,65 @@ class VideoServiceClientTest {
     // Assert
     assertThat(thrown).isInstanceOf(VideoServiceException.class);
   }
+
+  @Test
+  void updateVideoMetadata_success_callsCorrectEndpoint() throws Exception {
+    // Arrange
+    UUID videoId = UUID.randomUUID();
+    VideoServiceClient.UpdateVideoMetadataRequest request =
+        new VideoServiceClient.UpdateVideoMetadataRequest(
+            java.util.List.of("FIRST", "FOURTH"),
+            java.util.List.of("POLICE", "CITIZEN"),
+            java.time.LocalDate.of(2025, 1, 15));
+    mockWebServer.enqueue(new MockResponse().setResponseCode(200));
+
+    // Act
+    videoServiceClient.updateVideoMetadata(videoId, request);
+
+    // Assert
+    RecordedRequest recordedRequest = mockWebServer.takeRequest();
+    assertThat(recordedRequest.getMethod()).isEqualTo("PUT");
+    assertThat(recordedRequest.getPath()).isEqualTo("/internal/videos/" + videoId);
+    assertThat(recordedRequest.getHeader("Content-Type")).contains("application/json");
+
+    String body = recordedRequest.getBody().readUtf8();
+    assertThat(body).contains("\"amendments\":[\"FIRST\",\"FOURTH\"]");
+    assertThat(body).contains("\"participants\":[\"POLICE\",\"CITIZEN\"]");
+    // LocalDate is serialized as array by default Jackson serialization
+    assertThat(body).contains("\"videoDate\":[2025,1,15]");
+  }
+
+  @Test
+  void updateVideoMetadata_serverError_throwsException() {
+    // Arrange
+    UUID videoId = UUID.randomUUID();
+    VideoServiceClient.UpdateVideoMetadataRequest request =
+        new VideoServiceClient.UpdateVideoMetadataRequest(null, null, null);
+    mockWebServer.enqueue(new MockResponse().setResponseCode(500).setBody("Internal Server Error"));
+
+    // Act
+    Throwable thrown =
+        catchThrowable(() -> videoServiceClient.updateVideoMetadata(videoId, request));
+
+    // Assert
+    assertThat(thrown).isInstanceOf(VideoServiceException.class);
+    assertThat(((VideoServiceException) thrown).getHttpStatusCode().value()).isEqualTo(500);
+  }
+
+  @Test
+  void updateVideoMetadata_notFound_throwsException() {
+    // Arrange
+    UUID videoId = UUID.randomUUID();
+    VideoServiceClient.UpdateVideoMetadataRequest request =
+        new VideoServiceClient.UpdateVideoMetadataRequest(null, null, null);
+    mockWebServer.enqueue(new MockResponse().setResponseCode(404).setBody("Video not found"));
+
+    // Act
+    Throwable thrown =
+        catchThrowable(() -> videoServiceClient.updateVideoMetadata(videoId, request));
+
+    // Assert
+    assertThat(thrown).isInstanceOf(VideoServiceException.class);
+    assertThat(((VideoServiceException) thrown).getHttpStatusCode().value()).isEqualTo(404);
+  }
 }

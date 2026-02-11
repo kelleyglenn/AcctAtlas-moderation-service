@@ -813,14 +813,12 @@ components:
           items:
             type: string
             enum: [FIRST, SECOND, FOURTH, FIFTH]
-          minItems: 1
           description: Constitutional amendments featured in the video
         participants:
           type: array
           items:
             type: string
             enum: [POLICE, GOVERNMENT, BUSINESS, CITIZEN]
-          minItems: 1
           description: Types of participants in the encounter
         videoDate:
           type: string

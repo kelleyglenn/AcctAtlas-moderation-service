@@ -1,6 +1,9 @@
 package com.accountabilityatlas.moderationservice.client;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -46,6 +49,36 @@ public class VideoServiceClient {
     } catch (Exception e) {
       log.error("Failed to update video {} status: {}", videoId, e.getMessage());
       throw new VideoServiceException("Failed to update video status: " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Updates video metadata (amendments, participants, videoDate).
+   *
+   * @param videoId the video ID
+   * @param request the metadata update request
+   * @throws VideoServiceException if the request fails
+   */
+  public void updateVideoMetadata(UUID videoId, UpdateVideoMetadataRequest request) {
+    log.info("Updating video {} metadata", videoId);
+    try {
+      webClient
+          .put()
+          .uri("/internal/videos/{id}", videoId)
+          .contentType(MediaType.APPLICATION_JSON)
+          .bodyValue(request)
+          .retrieve()
+          .toBodilessEntity()
+          .block();
+      log.info("Successfully updated video {} metadata", videoId);
+    } catch (WebClientResponseException e) {
+      log.error(
+          "Failed to update video {} metadata: {} {}", videoId, e.getStatusCode(), e.getMessage());
+      throw new VideoServiceException(
+          "Failed to update video metadata: " + e.getStatusCode(), e.getStatusCode(), e);
+    } catch (Exception e) {
+      log.error("Failed to update video {} metadata: {}", videoId, e.getMessage());
+      throw new VideoServiceException("Failed to update video metadata: " + e.getMessage(), e);
     }
   }
 
@@ -128,10 +161,15 @@ public class VideoServiceClient {
   /** Request body for status update. */
   public record StatusUpdateRequest(String status) {}
 
+  /** Request body for updating video metadata. */
+  public record UpdateVideoMetadataRequest(
+      List<String> amendments, List<String> participants, LocalDate videoDate) {}
+
   /** Request body for adding a location. */
   public record AddLocationRequest(UUID locationId, boolean isPrimary) {}
 
   /** Exception thrown when video-service calls fail. */
+  @Getter
   public static class VideoServiceException extends RuntimeException {
     private final HttpStatusCode httpStatusCode;
 
@@ -143,10 +181,6 @@ public class VideoServiceClient {
     public VideoServiceException(String message, HttpStatusCode httpStatusCode, Throwable cause) {
       super(message, cause);
       this.httpStatusCode = httpStatusCode;
-    }
-
-    public HttpStatusCode getHttpStatusCode() {
-      return httpStatusCode;
     }
   }
 }

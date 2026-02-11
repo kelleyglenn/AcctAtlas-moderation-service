@@ -1,8 +1,10 @@
 package com.accountabilityatlas.moderationservice.web;
 
+import com.accountabilityatlas.moderationservice.client.VideoServiceClient;
 import com.accountabilityatlas.moderationservice.domain.ContentType;
 import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.domain.ModerationStatus;
+import com.accountabilityatlas.moderationservice.exception.StatusNotAllowedException;
 import com.accountabilityatlas.moderationservice.service.ModerationService;
 import com.accountabilityatlas.moderationservice.service.ModerationService.QueueStats;
 import com.accountabilityatlas.moderationservice.web.api.QueueApi;
@@ -24,6 +26,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ModerationQueueController implements QueueApi {
 
   private final ModerationService moderationService;
+  private final VideoServiceClient videoServiceClient;
 
   @Override
   public ResponseEntity<ModerationQueueResponse> listModerationQueue(
-      @Nullable
-          com.accountabilityatlas.moderationservice.web.model.ModerationStatus status,
+      @Nullable com.accountabilityatlas.moderationservice.web.model.ModerationStatus status,
       @Nullable com.accountabilityatlas.moderationservice.web.model.ContentType contentType,
       String sortBy,
       String direction,
@@ -111,21 +115,80 @@ public class ModerationQueueController implements QueueApi {
   @Override
   public ResponseEntity<ModerationItemDetail> addVideoLocation(
       UUID id, AddLocationRequest addLocationRequest) {
-    // TODO: Implement video location management via video-service integration
-    throw new UnsupportedOperationException("Video location management not yet implemented");
+    ModerationItem item = moderationService.getItem(id);
+    checkVideoModificationAllowed(item);
+
+    boolean isPrimary =
+        addLocationRequest.getIsPrimary() != null && addLocationRequest.getIsPrimary();
+    videoServiceClient.addLocation(
+        item.getContentId(), addLocationRequest.getLocationId(), isPrimary);
+
+    return ResponseEntity.ok(toApiModerationItemDetail(item));
   }
 
   @Override
   public ResponseEntity<Void> removeVideoLocation(UUID id, UUID locationId) {
-    // TODO: Implement video location management via video-service integration
-    throw new UnsupportedOperationException("Video location management not yet implemented");
+    ModerationItem item = moderationService.getItem(id);
+    checkVideoModificationAllowed(item);
+
+    videoServiceClient.removeLocation(item.getContentId(), locationId);
+
+    return ResponseEntity.noContent().build();
   }
 
   @Override
   public ResponseEntity<ModerationItemDetail> updateVideoMetadata(
       UUID id, UpdateVideoRequest updateVideoRequest) {
-    // TODO: Implement video metadata updates via video-service integration
-    throw new UnsupportedOperationException("Video metadata updates not yet implemented");
+    ModerationItem item = moderationService.getItem(id);
+    checkVideoModificationAllowed(item);
+
+    // Convert API model to client request
+    List<String> amendments =
+        updateVideoRequest.getAmendments() != null
+            ? updateVideoRequest.getAmendments().stream()
+                .map(UpdateVideoRequest.AmendmentsEnum::getValue)
+                .toList()
+            : null;
+    List<String> participants =
+        updateVideoRequest.getParticipants() != null
+            ? updateVideoRequest.getParticipants().stream()
+                .map(UpdateVideoRequest.ParticipantsEnum::getValue)
+                .toList()
+            : null;
+
+    VideoServiceClient.UpdateVideoMetadataRequest clientRequest =
+        new VideoServiceClient.UpdateVideoMetadataRequest(
+            amendments, participants, updateVideoRequest.getVideoDate());
+
+    videoServiceClient.updateVideoMetadata(item.getContentId(), clientRequest);
+
+    return ResponseEntity.ok(toApiModerationItemDetail(item));
+  }
+
+  /**
+   * Checks if the current user is allowed to modify the video based on item status.
+   *
+   * <p>Moderators can only modify PENDING videos. Admins can modify videos with any status.
+   *
+   * @param item the moderation item
+   * @throws StatusNotAllowedException if the user is not allowed to modify this item
+   */
+  private void checkVideoModificationAllowed(ModerationItem item) {
+    if (item.getStatus() != ModerationStatus.PENDING && !isAdmin()) {
+      throw new StatusNotAllowedException(item.getStatus());
+    }
+  }
+
+  /**
+   * Checks if the current user has the ADMIN role.
+   *
+   * @return true if the user is an admin
+   */
+  private boolean isAdmin() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    return authentication.getAuthorities().stream()
+        .map(GrantedAuthority::getAuthority)
+        .anyMatch(auth -> auth.equals("ROLE_ADMIN"));
   }
 
   private UUID getCurrentUserId() {
