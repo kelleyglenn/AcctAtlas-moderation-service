@@ -21,19 +21,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class VideoSubmittedEventListenerTest {
+class VideoSubmittedHandlerTest {
 
   @Mock private ModerationService moderationService;
   @Mock private VideoServiceClient videoServiceClient;
   @Mock private ModerationEventPublisher moderationEventPublisher;
 
-  private VideoSubmittedEventListener listener;
+  private VideoSubmittedHandler handler;
 
   @BeforeEach
   void setUp() {
-    listener =
-        new VideoSubmittedEventListener(
-            moderationService, videoServiceClient, moderationEventPublisher);
+    handler =
+        new VideoSubmittedHandler(moderationService, videoServiceClient, moderationEventPublisher);
   }
 
   @Test
@@ -56,7 +55,7 @@ class VideoSubmittedEventListenerTest {
     when(moderationService.createItem(ContentType.VIDEO, videoId, submitterId)).thenReturn(item);
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService).createItem(ContentType.VIDEO, videoId, submitterId);
@@ -80,7 +79,7 @@ class VideoSubmittedEventListenerTest {
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -104,7 +103,7 @@ class VideoSubmittedEventListenerTest {
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -128,7 +127,7 @@ class VideoSubmittedEventListenerTest {
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
