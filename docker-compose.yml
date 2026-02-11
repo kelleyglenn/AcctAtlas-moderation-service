@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: moderation_service
+      POSTGRES_USER: moderation_service
+      POSTGRES_PASSWORD: local_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moderation_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  moderation-service:
+    image: acctatlas/moderation-service:latest
+    profiles: [app]
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/moderation_service
+      SPRING_DATASOURCE_USERNAME: moderation_service
+      SPRING_DATASOURCE_PASSWORD: local_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
