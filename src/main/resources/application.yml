@@ -35,10 +35,13 @@ spring:
         handleVideoSubmitted-in-0:
           destination: video-events
           group: moderation-service
+        handleUserTrustTierChanged-in-0:
+          destination: user-events
+          group: moderation-service
         moderationEvent-out-0:
           destination: moderation-events
       function:
-        definition: handleVideoSubmitted
+        definition: handleVideoSubmitted;handleUserTrustTierChanged
 
 server:
   port: 8085

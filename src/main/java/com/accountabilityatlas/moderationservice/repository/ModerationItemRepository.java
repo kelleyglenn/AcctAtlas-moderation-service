@@ -4,7 +4,7 @@ import com.accountabilityatlas.moderationservice.domain.ContentType;
 import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.domain.ModerationStatus;
 import java.time.Instant;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +20,7 @@ public interface ModerationItemRepository extends JpaRepository<ModerationItem, 
   Page<ModerationItem> findByStatusAndContentType(
       ModerationStatus status, ContentType contentType, Pageable pageable);
 
-  Optional<ModerationItem> findByContentId(UUID contentId);
+  List<ModerationItem> findBySubmitterIdAndStatus(UUID submitterId, ModerationStatus status);
 
   @Query(
       "SELECT COUNT(m) FROM ModerationItem m WHERE m.submitterId = :submitterId "
