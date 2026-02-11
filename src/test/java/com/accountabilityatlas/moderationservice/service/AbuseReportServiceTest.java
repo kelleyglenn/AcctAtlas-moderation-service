@@ -45,8 +45,7 @@ class AbuseReportServiceTest {
     UUID contentId = UUID.randomUUID();
     UUID reporterId = UUID.randomUUID();
     String description = "This content violates community guidelines";
-    when(abuseReportRepository.save(any(AbuseReport.class)))
-        .thenAnswer(inv -> inv.getArgument(0));
+    when(abuseReportRepository.save(any(AbuseReport.class))).thenAnswer(inv -> inv.getArgument(0));
 
     // Act
     AbuseReport result =
@@ -100,8 +99,7 @@ class AbuseReportServiceTest {
     report.setId(id);
     report.setStatus(ReportStatus.OPEN);
     when(abuseReportRepository.findById(id)).thenReturn(Optional.of(report));
-    when(abuseReportRepository.save(any(AbuseReport.class)))
-        .thenAnswer(inv -> inv.getArgument(0));
+    when(abuseReportRepository.save(any(AbuseReport.class))).thenAnswer(inv -> inv.getArgument(0));
 
     // Act
     AbuseReport result = abuseReportService.resolve(id, resolverId, resolutionNotes);
@@ -123,8 +121,7 @@ class AbuseReportServiceTest {
     report.setId(id);
     report.setStatus(ReportStatus.OPEN);
     when(abuseReportRepository.findById(id)).thenReturn(Optional.of(report));
-    when(abuseReportRepository.save(any(AbuseReport.class)))
-        .thenAnswer(inv -> inv.getArgument(0));
+    when(abuseReportRepository.save(any(AbuseReport.class))).thenAnswer(inv -> inv.getArgument(0));
 
     // Act
     AbuseReport result = abuseReportService.dismiss(id, resolverId, dismissalReason);

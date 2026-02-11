@@ -14,9 +14,10 @@ public interface AbuseReportRepository extends JpaRepository<AbuseReport, UUID> 
 
   Page<AbuseReport> findByStatus(ReportStatus status, Pageable pageable);
 
-  @Query("SELECT COUNT(a) FROM AbuseReport a WHERE a.contentId IN "
-      + "(SELECT m.contentId FROM ModerationItem m WHERE m.submitterId = :userId) "
-      + "AND a.status = 'OPEN'")
+  @Query(
+      "SELECT COUNT(a) FROM AbuseReport a WHERE a.contentId IN "
+          + "(SELECT m.contentId FROM ModerationItem m WHERE m.submitterId = :userId) "
+          + "AND a.status = 'OPEN'")
   int countActiveReportsAgainst(UUID userId);
 
   long countByStatus(ReportStatus status);

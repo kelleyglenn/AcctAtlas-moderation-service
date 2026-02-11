@@ -39,14 +39,12 @@ public class AbuseReportService {
 
   @Transactional(readOnly = true)
   public AbuseReport getReport(UUID id) {
-    return abuseReportRepository
-        .findById(id)
-        .orElseThrow(() -> new AbuseReportNotFoundException(id));
+    return getReportInternal(id);
   }
 
   @Transactional
   public AbuseReport resolve(UUID id, UUID moderatorId, String resolution) {
-    AbuseReport report = getReport(id);
+    AbuseReport report = getReportInternal(id);
     report.setStatus(ReportStatus.RESOLVED);
     report.setResolvedBy(moderatorId);
     report.setResolution(resolution);
@@ -56,7 +54,7 @@ public class AbuseReportService {
 
   @Transactional
   public AbuseReport dismiss(UUID id, UUID moderatorId, String reason) {
-    AbuseReport report = getReport(id);
+    AbuseReport report = getReportInternal(id);
     report.setStatus(ReportStatus.DISMISSED);
     report.setResolvedBy(moderatorId);
     report.setResolution(reason);
@@ -67,5 +65,11 @@ public class AbuseReportService {
   @Transactional(readOnly = true)
   public Page<AbuseReport> listReports(ReportStatus status, Pageable pageable) {
     return abuseReportRepository.findByStatus(status, pageable);
+  }
+
+  private AbuseReport getReportInternal(UUID id) {
+    return abuseReportRepository
+        .findById(id)
+        .orElseThrow(() -> new AbuseReportNotFoundException(id));
   }
 }

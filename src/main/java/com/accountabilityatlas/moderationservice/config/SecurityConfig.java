@@ -18,6 +18,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+  public static final String ADMIN = "ADMIN";
+  public static final String MODERATOR = "MODERATOR";
+
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.csrf(AbstractHttpConfigurer::disable)
@@ -28,11 +31,11 @@ public class SecurityConfig {
                 auth.requestMatchers("/actuator/**")
                     .permitAll()
                     .requestMatchers("/moderation/queue/**")
-                    .hasAnyRole("MODERATOR", "ADMIN")
+                    .hasAnyRole(MODERATOR, ADMIN)
                     .requestMatchers(HttpMethod.POST, "/moderation/reports")
                     .authenticated()
                     .requestMatchers("/moderation/reports/**")
-                    .hasAnyRole("MODERATOR", "ADMIN")
+                    .hasAnyRole(MODERATOR, ADMIN)
                     .anyRequest()
                     .authenticated())
         .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
@@ -48,6 +51,6 @@ public class SecurityConfig {
             Instant.now(),
             Instant.now().plusSeconds(3600),
             Map.of("alg", "none"),
-            Map.of("sub", "local-user", "roles", "ADMIN"));
+            Map.of("sub", "local-user", "roles", ADMIN));
   }
 }

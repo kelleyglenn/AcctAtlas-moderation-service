@@ -3,6 +3,7 @@ package com.accountabilityatlas.moderationservice.client;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -100,6 +101,7 @@ public class UserServiceClient {
   public record UpdateTrustTierRequest(String trustTier, String reason) {}
 
   /** Exception thrown when user-service calls fail. */
+  @Getter
   public static class UserServiceException extends RuntimeException {
     private final HttpStatusCode httpStatusCode;
 
@@ -111,10 +113,6 @@ public class UserServiceClient {
     public UserServiceException(String message, HttpStatusCode httpStatusCode, Throwable cause) {
       super(message, cause);
       this.httpStatusCode = httpStatusCode;
-    }
-
-    public HttpStatusCode getHttpStatusCode() {
-      return httpStatusCode;
     }
   }
 }

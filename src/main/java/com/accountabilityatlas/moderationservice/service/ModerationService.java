@@ -38,9 +38,7 @@ public class ModerationService {
 
   @Transactional(readOnly = true)
   public ModerationItem getItem(UUID id) {
-    return moderationItemRepository
-        .findById(id)
-        .orElseThrow(() -> new ModerationItemNotFoundException(id));
+    return getItemInternal(id);
   }
 
   @Transactional(readOnly = true)
@@ -59,7 +57,7 @@ public class ModerationService {
 
   @Transactional
   public ModerationItem approve(UUID id, UUID reviewerId) {
-    ModerationItem item = getItem(id);
+    ModerationItem item = getItemInternal(id);
     if (item.getStatus() != ModerationStatus.PENDING) {
       throw new ItemAlreadyReviewedException(id);
     }
@@ -72,7 +70,7 @@ public class ModerationService {
 
   @Transactional
   public ModerationItem reject(UUID id, UUID reviewerId, String reason) {
-    ModerationItem item = getItem(id);
+    ModerationItem item = getItemInternal(id);
     if (item.getStatus() != ModerationStatus.PENDING) {
       throw new ItemAlreadyReviewedException(id);
     }
@@ -89,13 +87,21 @@ public class ModerationService {
     long pending = moderationItemRepository.countByStatus(ModerationStatus.PENDING);
     Instant startOfDay = LocalDate.now(ZoneId.of("UTC")).atStartOfDay().toInstant(ZoneOffset.UTC);
 
-    long approvedToday = moderationItemRepository.countByStatusAndReviewedAtGreaterThanEqual(
-        ModerationStatus.APPROVED, startOfDay);
-    long rejectedToday = moderationItemRepository.countByStatusAndReviewedAtGreaterThanEqual(
-        ModerationStatus.REJECTED, startOfDay);
+    long approvedToday =
+        moderationItemRepository.countByStatusAndReviewedAtGreaterThanEqual(
+            ModerationStatus.APPROVED, startOfDay);
+    long rejectedToday =
+        moderationItemRepository.countByStatusAndReviewedAtGreaterThanEqual(
+            ModerationStatus.REJECTED, startOfDay);
     Double avgReviewTime = moderationItemRepository.calculateAverageReviewTimeMinutes();
 
     return new QueueStats(pending, approvedToday, rejectedToday, avgReviewTime);
+  }
+
+  private ModerationItem getItemInternal(UUID id) {
+    return moderationItemRepository
+        .findById(id)
+        .orElseThrow(() -> new ModerationItemNotFoundException(id));
   }
 
   public record QueueStats(

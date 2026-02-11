@@ -22,15 +22,17 @@ public interface ModerationItemRepository extends JpaRepository<ModerationItem, 
 
   Optional<ModerationItem> findByContentId(UUID contentId);
 
-  @Query("SELECT COUNT(m) FROM ModerationItem m WHERE m.submitterId = :submitterId "
-      + "AND m.status = 'REJECTED' AND m.reviewedAt >= :since")
+  @Query(
+      "SELECT COUNT(m) FROM ModerationItem m WHERE m.submitterId = :submitterId "
+          + "AND m.status = 'REJECTED' AND m.reviewedAt >= :since")
   int countRejectionsSince(UUID submitterId, Instant since);
 
   long countByStatus(ModerationStatus status);
 
   long countByStatusAndReviewedAtGreaterThanEqual(ModerationStatus status, Instant since);
 
-  @Query("SELECT AVG(EXTRACT(EPOCH FROM (m.reviewedAt - m.createdAt)) / 60.0) "
-      + "FROM ModerationItem m WHERE m.reviewedAt IS NOT NULL")
+  @Query(
+      "SELECT AVG(EXTRACT(EPOCH FROM (m.reviewedAt - m.createdAt)) / 60.0) "
+          + "FROM ModerationItem m WHERE m.reviewedAt IS NOT NULL")
   Double calculateAverageReviewTimeMinutes();
 }
