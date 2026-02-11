@@ -19,6 +19,4 @@ public interface AbuseReportRepository extends JpaRepository<AbuseReport, UUID> 
           + "(SELECT m.contentId FROM ModerationItem m WHERE m.submitterId = :userId) "
           + "AND a.status = 'OPEN'")
   int countActiveReportsAgainst(UUID userId);
-
-  long countByStatus(ReportStatus status);
 }

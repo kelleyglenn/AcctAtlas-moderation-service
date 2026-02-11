@@ -372,23 +372,6 @@ int countActiveReportsAgainst(UUID userId);
 
 Supports trust tier decisions (users with many open reports may be demoted).
 
-### Find audit log by moderator
-
-```java
-Page<AuditLogEntry> findByActorId(UUID actorId, Pageable pageable);
-```
-
-Uses `idx_audit_log_actor_id`. Review all actions taken by a specific moderator.
-
-### Find audit log for specific target
-
-```java
-Page<AuditLogEntry> findByTargetTypeAndTargetId(
-    String targetType, UUID targetId, Pageable pageable);
-```
-
-Uses `idx_audit_log_target`. View complete history of moderation actions on an item.
-
 ---
 
 ## Migration Notes

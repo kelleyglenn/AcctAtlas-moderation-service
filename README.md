@@ -125,6 +125,7 @@ src/main/resources/
 
 src/test/java/.../
   client/        Client unit tests
+  domain/        Entity unit tests
   event/         Event publisher tests
   service/       Service unit tests (Mockito)
   web/           Controller tests (@WebMvcTest)
@@ -150,3 +151,4 @@ API interfaces and DTOs are generated from `docs/api-specification.yaml` by the 
 
 - [Technical Overview](docs/technical.md)
 - [API Specification](docs/api-specification.yaml) (OpenAPI 3.1)
+- [Database Schema](docs/database-schema.md)

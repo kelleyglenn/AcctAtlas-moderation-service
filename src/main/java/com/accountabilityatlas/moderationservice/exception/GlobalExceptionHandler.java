@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@SuppressWarnings("unused") // Methods are invoked by Spring via reflection
 public class GlobalExceptionHandler {
 
   public record ErrorResponse(

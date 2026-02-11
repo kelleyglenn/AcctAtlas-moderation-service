@@ -50,11 +50,6 @@ public class ModerationService {
   }
 
   @Transactional(readOnly = true)
-  public Page<ModerationItem> getQueue(ModerationStatus status, Pageable pageable) {
-    return moderationItemRepository.findByStatus(status, pageable);
-  }
-
-  @Transactional(readOnly = true)
   public Page<ModerationItem> getQueue(
       ModerationStatus status, @Nullable ContentType contentType, Pageable pageable) {
     if (contentType != null) {

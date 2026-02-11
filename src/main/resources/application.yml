@@ -3,9 +3,9 @@ spring:
     name: moderation-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5435/moderation
-    username: moderation
-    password: moderation
+    url: jdbc:postgresql://localhost:5432/moderation_service
+    username: moderation_service
+    password: local_dev
     driver-class-name: org.postgresql.Driver
 
   jpa:

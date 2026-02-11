@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,13 +18,19 @@ import com.accountabilityatlas.moderationservice.client.VideoServiceClient.Video
 import com.accountabilityatlas.moderationservice.domain.ContentType;
 import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.domain.ModerationStatus;
+import com.accountabilityatlas.moderationservice.exception.ItemAlreadyReviewedException;
 import com.accountabilityatlas.moderationservice.exception.ModerationItemNotFoundException;
 import com.accountabilityatlas.moderationservice.service.ModerationService;
+import com.accountabilityatlas.moderationservice.service.ModerationService.QueueStats;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -37,6 +44,229 @@ class ModerationQueueControllerTest {
   @MockitoBean private ModerationService moderationService;
 
   @MockitoBean private VideoServiceClient videoServiceClient;
+
+  // ============================================
+  // listModerationQueue tests
+  // ============================================
+
+  @Test
+  void listModerationQueue_defaultParams_returnsPendingItems() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, videoId, ModerationStatus.PENDING);
+    Page<ModerationItem> page = new PageImpl<>(List.of(item), PageRequest.of(0, 20), 1);
+    when(moderationService.getQueue(eq(ModerationStatus.PENDING), eq(null), any()))
+        .thenReturn(page);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR")))
+                .param("page", "0")
+                .param("size", "20")
+                .param("sortBy", "createdAt")
+                .param("direction", "asc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content").isArray())
+        .andExpect(jsonPath("$.content[0].id").value(itemId.toString()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.page").value(0));
+  }
+
+  @Test
+  void listModerationQueue_withStatusAndContentType_appliesFilters() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, videoId, ModerationStatus.APPROVED);
+    Page<ModerationItem> page = new PageImpl<>(List.of(item), PageRequest.of(0, 20), 1);
+    when(moderationService.getQueue(eq(ModerationStatus.APPROVED), eq(ContentType.VIDEO), any()))
+        .thenReturn(page);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR")))
+                .param("status", "APPROVED")
+                .param("contentType", "VIDEO")
+                .param("page", "0")
+                .param("size", "20")
+                .param("sortBy", "createdAt")
+                .param("direction", "desc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].status").value("APPROVED"));
+  }
+
+  // ============================================
+  // getModerationItem tests
+  // ============================================
+
+  @Test
+  void getModerationItem_existingId_returnsItem() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, videoId, ModerationStatus.PENDING);
+    when(moderationService.getItem(itemId)).thenReturn(item);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/{id}", itemId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(itemId.toString()))
+        .andExpect(jsonPath("$.contentType").value("VIDEO"))
+        .andExpect(jsonPath("$.status").value("PENDING"));
+  }
+
+  @Test
+  void getModerationItem_notFound_returns404() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    when(moderationService.getItem(itemId)).thenThrow(new ModerationItemNotFoundException(itemId));
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/{id}", itemId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isNotFound());
+  }
+
+  // ============================================
+  // approveContent tests
+  // ============================================
+
+  @Test
+  void approveContent_validRequest_returnsApprovedItem() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    UUID reviewerId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, videoId, ModerationStatus.APPROVED);
+    item.setReviewerId(reviewerId);
+    item.setReviewedAt(Instant.now());
+    when(moderationService.approve(itemId, reviewerId)).thenReturn(item);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            post("/moderation/queue/{id}/approve", itemId)
+                .with(
+                    jwt()
+                        .jwt(jwt -> jwt.subject(reviewerId.toString()))
+                        .authorities(new SimpleGrantedAuthority("ROLE_MODERATOR")))
+                .contentType("application/json")
+                .content("{}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(itemId.toString()))
+        .andExpect(jsonPath("$.status").value("APPROVED"))
+        .andExpect(jsonPath("$.reviewerId").value(reviewerId.toString()));
+  }
+
+  @Test
+  void approveContent_alreadyReviewed_returns409() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID reviewerId = UUID.randomUUID();
+    when(moderationService.approve(itemId, reviewerId))
+        .thenThrow(new ItemAlreadyReviewedException(itemId));
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            post("/moderation/queue/{id}/approve", itemId)
+                .with(
+                    jwt()
+                        .jwt(jwt -> jwt.subject(reviewerId.toString()))
+                        .authorities(new SimpleGrantedAuthority("ROLE_MODERATOR")))
+                .contentType("application/json")
+                .content("{}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("ALREADY_REVIEWED"));
+  }
+
+  // ============================================
+  // rejectContent tests
+  // ============================================
+
+  @Test
+  void rejectContent_validRequest_returnsRejectedItem() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID videoId = UUID.randomUUID();
+    UUID reviewerId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, videoId, ModerationStatus.REJECTED);
+    item.setReviewerId(reviewerId);
+    item.setReviewedAt(Instant.now());
+    item.setRejectionReason("Violates community guidelines");
+    when(moderationService.reject(itemId, reviewerId, "Violates community guidelines"))
+        .thenReturn(item);
+
+    String requestBody =
+        """
+        {
+          "reason": "Violates community guidelines"
+        }
+        """;
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            post("/moderation/queue/{id}/reject", itemId)
+                .with(
+                    jwt()
+                        .jwt(jwt -> jwt.subject(reviewerId.toString()))
+                        .authorities(new SimpleGrantedAuthority("ROLE_MODERATOR")))
+                .contentType("application/json")
+                .content(requestBody))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(itemId.toString()))
+        .andExpect(jsonPath("$.status").value("REJECTED"))
+        .andExpect(jsonPath("$.rejectionReason").value("Violates community guidelines"));
+  }
+
+  // ============================================
+  // getQueueStats tests
+  // ============================================
+
+  @Test
+  void getQueueStats_returnsStats() throws Exception {
+    // Arrange
+    QueueStats stats = new QueueStats(10, 5, 2, 15.5);
+    when(moderationService.getQueueStats()).thenReturn(stats);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/stats")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pending").value(10))
+        .andExpect(jsonPath("$.approvedToday").value(5))
+        .andExpect(jsonPath("$.rejectedToday").value(2))
+        .andExpect(jsonPath("$.avgReviewTimeMinutes").value(15.5));
+  }
+
+  @Test
+  void getQueueStats_nullAvgTime_returnsNullAvgTime() throws Exception {
+    // Arrange
+    QueueStats stats = new QueueStats(0, 0, 0, null);
+    when(moderationService.getQueueStats()).thenReturn(stats);
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/stats")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.pending").value(0))
+        .andExpect(jsonPath("$.avgReviewTimeMinutes").isEmpty());
+  }
 
   // ============================================
   // updateVideoMetadata tests
