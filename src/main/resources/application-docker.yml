@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/moderation_service
+  cloud:
+    aws:
+      sqs:
+        endpoint: http://localstack:4566
+
+app:
+  video-service:
+    base-url: http://video-service:8082
+  user-service:
+    base-url: http://user-service:8080

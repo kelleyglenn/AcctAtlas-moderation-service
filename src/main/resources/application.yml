@@ -23,6 +23,23 @@ spring:
       - moderation
     default-schema: moderation
 
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:us-east-1}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID:test}
+        secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+    stream:
+      bindings:
+        handleVideoSubmitted-in-0:
+          destination: video-events
+          group: moderation-service
+        moderationEvent-out-0:
+          destination: moderation-events
+      function:
+        definition: handleVideoSubmitted
+
 server:
   port: 8085
 
