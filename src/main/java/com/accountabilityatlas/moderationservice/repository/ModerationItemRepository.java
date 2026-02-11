@@ -22,6 +22,8 @@ public interface ModerationItemRepository extends JpaRepository<ModerationItem, 
 
   Optional<ModerationItem> findByContentId(UUID contentId);
 
+  java.util.List<ModerationItem> findBySubmitterIdAndStatus(UUID submitterId, ModerationStatus status);
+
   @Query(
       "SELECT COUNT(m) FROM ModerationItem m WHERE m.submitterId = :submitterId "
           + "AND m.status = 'REJECTED' AND m.reviewedAt >= :since")
