@@ -195,7 +195,11 @@ public class ModerationService {
         eventPublisher.publishVideoApproved(item.getContentId(), systemReviewerId);
 
         auditLogService.logAction(
-            systemReviewerId, ACTION_AUTO_APPROVE, MODERATION_ITEM, item.getId(), "trust_tier_upgrade");
+            systemReviewerId,
+            ACTION_AUTO_APPROVE,
+            MODERATION_ITEM,
+            item.getId(),
+            "trust_tier_upgrade");
         approved++;
       } catch (Exception e) {
         log.error("Failed to auto-approve item {}: {}", item.getId(), e.getMessage());

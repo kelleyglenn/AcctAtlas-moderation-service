@@ -19,7 +19,8 @@ import org.springframework.context.annotation.Configuration;
 public class UserTrustTierChangedHandler {
 
   /** System user ID for auto-approval audit trail. */
-  private static final UUID SYSTEM_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+  private static final UUID SYSTEM_USER_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000000000");
 
   private final ModerationService moderationService;
 

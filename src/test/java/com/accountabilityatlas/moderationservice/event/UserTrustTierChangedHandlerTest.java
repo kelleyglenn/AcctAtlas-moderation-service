@@ -17,7 +17,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class UserTrustTierChangedHandlerTest {
 
-  private static final UUID SYSTEM_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+  private static final UUID SYSTEM_USER_ID =
+      UUID.fromString("00000000-0000-0000-0000-000000000000");
 
   @Mock private ModerationService moderationService;
 
