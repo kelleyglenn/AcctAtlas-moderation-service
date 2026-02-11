@@ -12,6 +12,7 @@ import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.service.ModerationService;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,19 +21,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class VideoSubmittedEventListenerTest {
+class VideoSubmittedHandlerTest {
 
   @Mock private ModerationService moderationService;
   @Mock private VideoServiceClient videoServiceClient;
   @Mock private ModerationEventPublisher moderationEventPublisher;
 
-  private VideoSubmittedEventListener listener;
+  private VideoSubmittedHandler handler;
 
   @BeforeEach
   void setUp() {
-    listener =
-        new VideoSubmittedEventListener(
-            moderationService, videoServiceClient, moderationEventPublisher);
+    handler =
+        new VideoSubmittedHandler(moderationService, videoServiceClient, moderationEventPublisher);
   }
 
   @Test
@@ -46,7 +46,7 @@ class VideoSubmittedEventListenerTest {
             submitterId,
             "NEW",
             "Test Video",
-            List.of(1, 4),
+            Set.of("FIRST", "FOURTH"),
             List.of(UUID.randomUUID()),
             Instant.now());
 
@@ -55,7 +55,7 @@ class VideoSubmittedEventListenerTest {
     when(moderationService.createItem(ContentType.VIDEO, videoId, submitterId)).thenReturn(item);
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService).createItem(ContentType.VIDEO, videoId, submitterId);
@@ -74,12 +74,12 @@ class VideoSubmittedEventListenerTest {
             submitterId,
             "TRUSTED",
             "Test Video",
-            List.of(1, 4),
+            Set.of("FIRST", "FOURTH"),
             List.of(UUID.randomUUID()),
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -98,12 +98,12 @@ class VideoSubmittedEventListenerTest {
             submitterId,
             "MODERATOR",
             "Test Video",
-            List.of(1, 4),
+            Set.of("FIRST", "FOURTH"),
             List.of(UUID.randomUUID()),
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -122,12 +122,12 @@ class VideoSubmittedEventListenerTest {
             submitterId,
             "ADMIN",
             "Test Video",
-            List.of(1, 4),
+            Set.of("FIRST", "FOURTH"),
             List.of(UUID.randomUUID()),
             Instant.now());
 
     // Act
-    listener.handleVideoSubmitted(event);
+    handler.handleVideoSubmitted().accept(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());

@@ -2,6 +2,7 @@ package com.accountabilityatlas.moderationservice.event;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -13,7 +14,7 @@ import java.util.UUID;
  * @param submitterId the ID of the user who submitted the video
  * @param submitterTrustTier the trust tier of the submitter (NEW, TRUSTED, MODERATOR, ADMIN)
  * @param title the title of the video
- * @param amendments list of amendment numbers referenced in the video
+ * @param amendments set of amendment names referenced in the video (e.g., "FIRST", "FOURTH")
  * @param locationIds list of location IDs associated with the video
  * @param timestamp when the submission occurred
  */
@@ -22,7 +23,7 @@ public record VideoSubmittedEvent(
     UUID submitterId,
     String submitterTrustTier,
     String title,
-    List<Integer> amendments,
+    Set<String> amendments,
     List<UUID> locationIds,
     Instant timestamp) {
 
