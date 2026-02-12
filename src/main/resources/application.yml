@@ -30,18 +30,6 @@ spring:
       credentials:
         access-key: ${AWS_ACCESS_KEY_ID:test}
         secret-key: ${AWS_SECRET_ACCESS_KEY:test}
-    stream:
-      bindings:
-        handleVideoSubmitted-in-0:
-          destination: video-events
-          group: moderation-service
-        handleUserTrustTierChanged-in-0:
-          destination: user-events
-          group: moderation-service
-        moderationEvent-out-0:
-          destination: moderation-events
-      function:
-        definition: handleVideoSubmitted;handleUserTrustTierChanged
 
 server:
   port: 8085
@@ -56,6 +44,10 @@ management:
       show-details: when_authorized
 
 app:
+  sqs:
+    video-events-queue: video-events
+    user-events-queue: user-events
+    moderation-events-queue: moderation-events
   video-service:
     base-url: http://localhost:8082
   user-service:

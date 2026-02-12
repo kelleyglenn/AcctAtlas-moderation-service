@@ -3,14 +3,13 @@ package com.accountabilityatlas.moderationservice.event;
 import com.accountabilityatlas.moderationservice.client.VideoServiceClient;
 import com.accountabilityatlas.moderationservice.domain.ContentType;
 import com.accountabilityatlas.moderationservice.service.ModerationService;
-import java.util.function.Consumer;
+import io.awspring.cloud.sqs.annotation.SqsListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 /**
- * Spring Cloud Stream consumer for VideoSubmittedEvent.
+ * SQS listener for VideoSubmittedEvent.
  *
  * <p>When a video is submitted:
  *
@@ -19,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
  *   <li>TRUSTED, MODERATOR, ADMIN users: Video is auto-approved
  * </ul>
  */
-@Configuration
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class VideoSubmittedHandler {
@@ -29,34 +28,32 @@ public class VideoSubmittedHandler {
   private final ModerationEventPublisher moderationEventPublisher;
 
   /**
-   * Consumer bean that handles VideoSubmittedEvent from SQS.
+   * Handles VideoSubmittedEvent from SQS.
    *
-   * @return a consumer that processes video submission events
+   * @param event the video submitted event
    */
-  @Bean
-  public Consumer<VideoSubmittedEvent> handleVideoSubmitted() {
-    return event -> {
+  @SqsListener("${app.sqs.video-events-queue:video-events}")
+  public void handleVideoSubmitted(VideoSubmittedEvent event) {
+    log.info(
+        "Received VideoSubmittedEvent from SQS: videoId={}, submitterId={}, trustTier={}",
+        event.videoId(),
+        event.submitterId(),
+        event.submitterTrustTier());
+
+    if (event.requiresModeration()) {
       log.info(
-          "Received VideoSubmittedEvent from SQS: videoId={}, submitterId={}, trustTier={}",
+          "Queuing video {} for moderation (submitter {} has trust tier NEW)",
+          event.videoId(),
+          event.submitterId());
+      moderationService.createItem(ContentType.VIDEO, event.videoId(), event.submitterId());
+    } else {
+      log.info(
+          "Auto-approving video {} (submitter {} has trust tier {})",
           event.videoId(),
           event.submitterId(),
           event.submitterTrustTier());
-
-      if (event.requiresModeration()) {
-        log.info(
-            "Queuing video {} for moderation (submitter {} has trust tier NEW)",
-            event.videoId(),
-            event.submitterId());
-        moderationService.createItem(ContentType.VIDEO, event.videoId(), event.submitterId());
-      } else {
-        log.info(
-            "Auto-approving video {} (submitter {} has trust tier {})",
-            event.videoId(),
-            event.submitterId(),
-            event.submitterTrustTier());
-        videoServiceClient.updateVideoStatus(event.videoId(), "APPROVED");
-        moderationEventPublisher.publishVideoApproved(event.videoId(), event.submitterId());
-      }
-    };
+      videoServiceClient.updateVideoStatus(event.videoId(), "APPROVED");
+      moderationEventPublisher.publishVideoApproved(event.videoId(), event.submitterId());
+    }
   }
 }
