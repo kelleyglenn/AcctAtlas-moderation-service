@@ -1,7 +1,6 @@
 package com.accountabilityatlas.moderationservice.event;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -87,6 +86,6 @@ class VideoSubmittedHandlerTest {
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
     verify(videoServiceClient).updateVideoStatus(videoId, "APPROVED");
-    verify(moderationEventPublisher).publishVideoApproved(eq(videoId), eq(submitterId));
+    verify(moderationEventPublisher).publishVideoApproved(videoId, submitterId);
   }
 }
