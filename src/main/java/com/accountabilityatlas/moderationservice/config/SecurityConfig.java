@@ -43,7 +43,7 @@ public class SecurityConfig {
   }
 
   @Bean
-  @Profile("local")
+  @Profile({"local", "docker"})
   public JwtDecoder localJwtDecoder() {
     return token ->
         new Jwt(
