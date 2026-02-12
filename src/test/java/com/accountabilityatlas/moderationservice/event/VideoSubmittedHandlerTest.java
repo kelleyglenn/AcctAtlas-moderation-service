@@ -55,7 +55,7 @@ class VideoSubmittedHandlerTest {
     when(moderationService.createItem(ContentType.VIDEO, videoId, submitterId)).thenReturn(item);
 
     // Act
-    handler.handleVideoSubmitted().accept(event);
+    handler.handleVideoSubmitted(event);
 
     // Assert
     verify(moderationService).createItem(ContentType.VIDEO, videoId, submitterId);
@@ -79,7 +79,7 @@ class VideoSubmittedHandlerTest {
             Instant.now());
 
     // Act
-    handler.handleVideoSubmitted().accept(event);
+    handler.handleVideoSubmitted(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -103,7 +103,7 @@ class VideoSubmittedHandlerTest {
             Instant.now());
 
     // Act
-    handler.handleVideoSubmitted().accept(event);
+    handler.handleVideoSubmitted(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());
@@ -127,7 +127,7 @@ class VideoSubmittedHandlerTest {
             Instant.now());
 
     // Act
-    handler.handleVideoSubmitted().accept(event);
+    handler.handleVideoSubmitted(event);
 
     // Assert
     verify(moderationService, never()).createItem(any(), any(), any());

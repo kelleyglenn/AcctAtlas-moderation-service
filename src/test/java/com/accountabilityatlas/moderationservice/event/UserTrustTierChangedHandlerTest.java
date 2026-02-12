@@ -38,7 +38,7 @@ class UserTrustTierChangedHandlerTest {
     when(moderationService.approvePendingItemsForUser(userId, SYSTEM_USER_ID)).thenReturn(3);
 
     // Act
-    handler.handleUserTrustTierChanged().accept(event);
+    handler.handleUserTrustTierChanged(event);
 
     // Assert
     verify(moderationService).approvePendingItemsForUser(userId, SYSTEM_USER_ID);
@@ -53,7 +53,7 @@ class UserTrustTierChangedHandlerTest {
     when(moderationService.approvePendingItemsForUser(userId, SYSTEM_USER_ID)).thenReturn(1);
 
     // Act
-    handler.handleUserTrustTierChanged().accept(event);
+    handler.handleUserTrustTierChanged(event);
 
     // Assert
     verify(moderationService).approvePendingItemsForUser(userId, SYSTEM_USER_ID);
@@ -67,7 +67,7 @@ class UserTrustTierChangedHandlerTest {
         new UserTrustTierChangedEvent(userId, "TRUSTED", "MODERATOR", "MANUAL", Instant.now());
 
     // Act
-    handler.handleUserTrustTierChanged().accept(event);
+    handler.handleUserTrustTierChanged(event);
 
     // Assert
     verify(moderationService, never()).approvePendingItemsForUser(any(), any());
@@ -81,7 +81,7 @@ class UserTrustTierChangedHandlerTest {
         new UserTrustTierChangedEvent(userId, "TRUSTED", "NEW", "AUTO_DEMOTION", Instant.now());
 
     // Act
-    handler.handleUserTrustTierChanged().accept(event);
+    handler.handleUserTrustTierChanged(event);
 
     // Assert
     verify(moderationService, never()).approvePendingItemsForUser(any(), any());

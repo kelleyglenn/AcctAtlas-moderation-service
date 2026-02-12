@@ -1,19 +1,18 @@
 package com.accountabilityatlas.moderationservice.event;
 
 import com.accountabilityatlas.moderationservice.service.ModerationService;
+import io.awspring.cloud.sqs.annotation.SqsListener;
 import java.util.UUID;
-import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 /**
- * Spring Cloud Stream consumer for UserTrustTierChangedEvent.
+ * SQS listener for UserTrustTierChangedEvent.
  *
  * <p>When a user is promoted to TRUSTED or higher, auto-approve their pending moderation items.
  */
-@Configuration
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class UserTrustTierChangedHandler {
@@ -27,31 +26,29 @@ public class UserTrustTierChangedHandler {
   /**
    * Handles UserTrustTierChangedEvent from the user-events SQS queue.
    *
-   * @return consumer for user trust tier change events
+   * @param event the user trust tier changed event
    */
-  @Bean
-  public Consumer<UserTrustTierChangedEvent> handleUserTrustTierChanged() {
-    return event -> {
+  @SqsListener("${app.sqs.user-events-queue:user-events}")
+  public void handleUserTrustTierChanged(UserTrustTierChangedEvent event) {
+    log.info(
+        "Received UserTrustTierChangedEvent from SQS: userId={}, {} -> {}",
+        event.userId(),
+        event.oldTier(),
+        event.newTier());
+
+    if (event.isPromotionToTrusted()) {
       log.info(
-          "Received UserTrustTierChangedEvent from SQS: userId={}, {} -> {}",
+          "User {} promoted from NEW to {} - auto-approving pending items",
+          event.userId(),
+          event.newTier());
+      int approved = moderationService.approvePendingItemsForUser(event.userId(), SYSTEM_USER_ID);
+      log.info("Auto-approved {} pending items for user {}", approved, event.userId());
+    } else {
+      log.debug(
+          "Trust tier change for user {} ({} -> {}) does not trigger auto-approval",
           event.userId(),
           event.oldTier(),
           event.newTier());
-
-      if (event.isPromotionToTrusted()) {
-        log.info(
-            "User {} promoted from NEW to {} - auto-approving pending items",
-            event.userId(),
-            event.newTier());
-        int approved = moderationService.approvePendingItemsForUser(event.userId(), SYSTEM_USER_ID);
-        log.info("Auto-approved {} pending items for user {}", approved, event.userId());
-      } else {
-        log.debug(
-            "Trust tier change for user {} ({} -> {}) does not trigger auto-approval",
-            event.userId(),
-            event.oldTier(),
-            event.newTier());
-      }
-    };
+    }
   }
 }
