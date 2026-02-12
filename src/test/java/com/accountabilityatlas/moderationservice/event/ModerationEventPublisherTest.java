@@ -1,8 +1,11 @@
 package com.accountabilityatlas.moderationservice.event;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.awspring.cloud.sqs.operations.SqsTemplate;
 import java.util.UUID;
@@ -70,5 +73,41 @@ class ModerationEventPublisherTest {
     assertThat(rejectedEvent.reviewerId()).isEqualTo(reviewerId);
     assertThat(rejectedEvent.reason()).isEqualTo(reason);
     assertThat(rejectedEvent.timestamp()).isNotNull();
+  }
+
+  @Test
+  void publishVideoApproved_sqsFailure_rethrowsException() {
+    // Arrange
+    ReflectionTestUtils.setField(
+        moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    UUID videoId = UUID.randomUUID();
+    UUID reviewerId = UUID.randomUUID();
+
+    RuntimeException sqsException = new RuntimeException("SQS connection failed");
+    when(sqsTemplate.send(eq(MODERATION_EVENTS_QUEUE), any(VideoApprovedEvent.class)))
+        .thenThrow(sqsException);
+
+    // Act & Assert
+    assertThatThrownBy(() -> moderationEventPublisher.publishVideoApproved(videoId, reviewerId))
+        .isSameAs(sqsException);
+  }
+
+  @Test
+  void publishVideoRejected_sqsFailure_rethrowsException() {
+    // Arrange
+    ReflectionTestUtils.setField(
+        moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    UUID videoId = UUID.randomUUID();
+    UUID reviewerId = UUID.randomUUID();
+    String reason = "Inappropriate content";
+
+    RuntimeException sqsException = new RuntimeException("SQS connection failed");
+    when(sqsTemplate.send(eq(MODERATION_EVENTS_QUEUE), any(VideoRejectedEvent.class)))
+        .thenThrow(sqsException);
+
+    // Act & Assert
+    assertThatThrownBy(
+            () -> moderationEventPublisher.publishVideoRejected(videoId, reviewerId, reason))
+        .isSameAs(sqsException);
   }
 }
