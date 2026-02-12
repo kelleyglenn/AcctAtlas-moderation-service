@@ -17,6 +17,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -63,8 +65,9 @@ class VideoSubmittedHandlerTest {
     verify(moderationEventPublisher, never()).publishVideoApproved(any(), any());
   }
 
-  @Test
-  void handleVideoSubmitted_trustedUser_autoApproves() {
+  @ParameterizedTest(name = "trust tier {0} auto-approves")
+  @ValueSource(strings = {"TRUSTED", "MODERATOR", "ADMIN"})
+  void handleVideoSubmitted_trustedTiers_autoApproves(String trustTier) {
     // Arrange
     UUID videoId = UUID.randomUUID();
     UUID submitterId = UUID.randomUUID();
@@ -72,55 +75,7 @@ class VideoSubmittedHandlerTest {
         new VideoSubmittedEvent(
             videoId,
             submitterId,
-            "TRUSTED",
-            "Test Video",
-            Set.of("FIRST", "FOURTH"),
-            List.of(UUID.randomUUID()),
-            Instant.now());
-
-    // Act
-    handler.handleVideoSubmitted(event);
-
-    // Assert
-    verify(moderationService, never()).createItem(any(), any(), any());
-    verify(videoServiceClient).updateVideoStatus(videoId, "APPROVED");
-    verify(moderationEventPublisher).publishVideoApproved(eq(videoId), eq(submitterId));
-  }
-
-  @Test
-  void handleVideoSubmitted_moderatorUser_autoApproves() {
-    // Arrange
-    UUID videoId = UUID.randomUUID();
-    UUID submitterId = UUID.randomUUID();
-    VideoSubmittedEvent event =
-        new VideoSubmittedEvent(
-            videoId,
-            submitterId,
-            "MODERATOR",
-            "Test Video",
-            Set.of("FIRST", "FOURTH"),
-            List.of(UUID.randomUUID()),
-            Instant.now());
-
-    // Act
-    handler.handleVideoSubmitted(event);
-
-    // Assert
-    verify(moderationService, never()).createItem(any(), any(), any());
-    verify(videoServiceClient).updateVideoStatus(videoId, "APPROVED");
-    verify(moderationEventPublisher).publishVideoApproved(eq(videoId), eq(submitterId));
-  }
-
-  @Test
-  void handleVideoSubmitted_adminUser_autoApproves() {
-    // Arrange
-    UUID videoId = UUID.randomUUID();
-    UUID submitterId = UUID.randomUUID();
-    VideoSubmittedEvent event =
-        new VideoSubmittedEvent(
-            videoId,
-            submitterId,
-            "ADMIN",
+            trustTier,
             "Test Video",
             Set.of("FIRST", "FOURTH"),
             List.of(UUID.randomUUID()),
