@@ -30,6 +30,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -72,6 +75,17 @@ public class ModerationQueueController implements QueueApi {
             .totalPages(queuePage.getTotalPages());
 
     return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/moderation/queue/by-content/{contentId}")
+  public ResponseEntity<com.accountabilityatlas.moderationservice.web.model.ModerationItem>
+      getModerationItemByContentId(
+          @PathVariable UUID contentId, @RequestParam(defaultValue = "PENDING") String status) {
+    ModerationStatus domainStatus = ModerationStatus.valueOf(status);
+    return moderationService
+        .findByContentId(contentId, domainStatus)
+        .map(item -> ResponseEntity.ok(toApiModerationItem(item)))
+        .orElse(ResponseEntity.notFound().build());
   }
 
   @Override

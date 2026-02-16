@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,11 @@ public class ModerationService {
   @Transactional(readOnly = true)
   public ModerationItem getItem(UUID id) {
     return getItemInternal(id);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<ModerationItem> findByContentId(UUID contentId, ModerationStatus status) {
+    return moderationItemRepository.findByContentIdAndStatus(contentId, status);
   }
 
   @Transactional(readOnly = true)

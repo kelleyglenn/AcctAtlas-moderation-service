@@ -229,6 +229,34 @@ class ModerationServiceTest {
   }
 
   @Test
+  void findByContentId_found_returnsItem() {
+    UUID contentId = UUID.randomUUID();
+    ModerationItem item = new ModerationItem();
+    item.setContentId(contentId);
+    item.setStatus(ModerationStatus.PENDING);
+    when(moderationItemRepository.findByContentIdAndStatus(contentId, ModerationStatus.PENDING))
+        .thenReturn(Optional.of(item));
+
+    Optional<ModerationItem> result =
+        moderationService.findByContentId(contentId, ModerationStatus.PENDING);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getContentId()).isEqualTo(contentId);
+  }
+
+  @Test
+  void findByContentId_notFound_returnsEmpty() {
+    UUID contentId = UUID.randomUUID();
+    when(moderationItemRepository.findByContentIdAndStatus(contentId, ModerationStatus.PENDING))
+        .thenReturn(Optional.empty());
+
+    Optional<ModerationItem> result =
+        moderationService.findByContentId(contentId, ModerationStatus.PENDING);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
   void approve_alreadyReviewedItem_skipsIntegrations() {
     // Arrange
     UUID id = UUID.randomUUID();

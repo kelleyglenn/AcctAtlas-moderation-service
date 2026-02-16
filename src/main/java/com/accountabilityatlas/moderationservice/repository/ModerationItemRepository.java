@@ -5,6 +5,7 @@ import com.accountabilityatlas.moderationservice.domain.ModerationItem;
 import com.accountabilityatlas.moderationservice.domain.ModerationStatus;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,8 @@ public interface ModerationItemRepository extends JpaRepository<ModerationItem, 
       "SELECT COUNT(m) FROM ModerationItem m WHERE m.submitterId = :submitterId "
           + "AND m.status = 'REJECTED' AND m.reviewedAt >= :since")
   int countRejectionsSince(UUID submitterId, Instant since);
+
+  Optional<ModerationItem> findByContentIdAndStatus(UUID contentId, ModerationStatus status);
 
   long countByStatus(ModerationStatus status);
 
