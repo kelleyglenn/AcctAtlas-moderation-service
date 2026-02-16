@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -87,5 +88,35 @@ class VideoSubmittedHandlerTest {
     verify(moderationService, never()).createItem(any(), any(), any());
     verify(videoServiceClient).updateVideoStatus(videoId, "APPROVED");
     verify(moderationEventPublisher).publishVideoApproved(videoId, submitterId);
+  }
+
+  @ParameterizedTest(name = "null/unknown trust tier ''{0}'' requires moderation")
+  @NullSource
+  @ValueSource(strings = {"UNKNOWN", ""})
+  void handleVideoSubmitted_nullOrUnknownTrustTier_requiresModeration(String trustTier) {
+    // Arrange - if trust tier is missing or unrecognized, default to manual moderation
+    UUID videoId = UUID.randomUUID();
+    UUID submitterId = UUID.randomUUID();
+    VideoSubmittedEvent event =
+        new VideoSubmittedEvent(
+            videoId,
+            submitterId,
+            trustTier,
+            "Test Video",
+            Set.of("FIRST"),
+            List.of(UUID.randomUUID()),
+            Instant.now());
+
+    ModerationItem item = new ModerationItem();
+    item.setId(UUID.randomUUID());
+    when(moderationService.createItem(ContentType.VIDEO, videoId, submitterId)).thenReturn(item);
+
+    // Act
+    handler.handleVideoSubmitted(event);
+
+    // Assert - should queue for moderation, not auto-approve
+    verify(moderationService).createItem(ContentType.VIDEO, videoId, submitterId);
+    verify(videoServiceClient, never()).updateVideoStatus(any(), any());
+    verify(moderationEventPublisher, never()).publishVideoApproved(any(), any());
   }
 }

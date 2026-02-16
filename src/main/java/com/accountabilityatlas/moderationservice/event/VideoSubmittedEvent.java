@@ -27,12 +27,18 @@ public record VideoSubmittedEvent(
     List<UUID> locationIds,
     Instant timestamp) {
 
+  private static final Set<String> AUTO_APPROVE_TIERS = Set.of("TRUSTED", "MODERATOR", "ADMIN");
+
   /**
-   * Checks if the submitter is a new user who requires manual moderation.
+   * Checks if the submitted video requires manual moderation.
    *
-   * @return true if the submitter trust tier is NEW
+   * <p>Only users with an explicitly trusted tier (TRUSTED, MODERATOR, ADMIN) bypass moderation.
+   * All other tiers, including NEW and null (unknown/missing), require moderation. This ensures
+   * that a missing or unrecognized trust tier defaults to the safe path of manual review.
+   *
+   * @return true if the submitter requires manual moderation
    */
   public boolean requiresModeration() {
-    return "NEW".equals(submitterTrustTier);
+    return submitterTrustTier == null || !AUTO_APPROVE_TIERS.contains(submitterTrustTier);
   }
 }
