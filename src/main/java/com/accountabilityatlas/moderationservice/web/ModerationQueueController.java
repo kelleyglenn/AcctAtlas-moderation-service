@@ -80,10 +80,10 @@ public class ModerationQueueController implements QueueApi {
   @GetMapping("/moderation/queue/by-content/{contentId}")
   public ResponseEntity<com.accountabilityatlas.moderationservice.web.model.ModerationItem>
       getModerationItemByContentId(
-          @PathVariable UUID contentId, @RequestParam(defaultValue = "PENDING") String status) {
-    ModerationStatus domainStatus = ModerationStatus.valueOf(status);
+          @PathVariable UUID contentId,
+          @RequestParam(defaultValue = "PENDING") ModerationStatus status) {
     return moderationService
-        .findByContentId(contentId, domainStatus)
+        .findByContentId(contentId, status)
         .map(item -> ResponseEntity.ok(toApiModerationItem(item)))
         .orElse(ResponseEntity.notFound().build());
   }

@@ -669,6 +669,18 @@ class ModerationQueueControllerTest {
         .andExpect(jsonPath("$.status").value("APPROVED"));
   }
 
+  @Test
+  void getModerationItemByContentId_invalidStatus_returns400() throws Exception {
+    UUID contentId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            get("/moderation/queue/by-content/{contentId}", contentId)
+                .param("status", "GARBAGE")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isBadRequest());
+  }
+
   // ============================================
   // Helper methods
   // ============================================
