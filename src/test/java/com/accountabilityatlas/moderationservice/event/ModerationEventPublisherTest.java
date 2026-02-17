@@ -34,9 +34,7 @@ class ModerationEventPublisherTest {
     ReflectionTestUtils.setField(
         moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
     ReflectionTestUtils.setField(
-        moderationEventPublisher,
-        "searchModerationEventsQueue",
-        SEARCH_MODERATION_EVENTS_QUEUE);
+        moderationEventPublisher, "searchModerationEventsQueue", SEARCH_MODERATION_EVENTS_QUEUE);
   }
 
   @Test
