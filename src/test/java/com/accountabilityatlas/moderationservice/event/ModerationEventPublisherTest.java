@@ -22,6 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class ModerationEventPublisherTest {
 
   private static final String MODERATION_EVENTS_QUEUE = "moderation-events";
+  private static final String SEARCH_MODERATION_EVENTS_QUEUE = "search-moderation-events";
 
   @Mock private SqsTemplate sqsTemplate;
 
@@ -29,33 +30,40 @@ class ModerationEventPublisherTest {
 
   @InjectMocks private ModerationEventPublisher moderationEventPublisher;
 
-  @Test
-  void publishVideoApproved_sendsToSqs() {
-    // Arrange
+  private void setQueues() {
     ReflectionTestUtils.setField(
         moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    ReflectionTestUtils.setField(
+        moderationEventPublisher, "searchModerationEventsQueue", SEARCH_MODERATION_EVENTS_QUEUE);
+  }
+
+  @Test
+  void publishVideoApproved_sendsToBothQueues() {
+    // Arrange
+    setQueues();
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
 
     // Act
     moderationEventPublisher.publishVideoApproved(videoId, reviewerId);
 
-    // Assert
+    // Assert — sent to video-service queue
     verify(sqsTemplate).send(eq(MODERATION_EVENTS_QUEUE), eventCaptor.capture());
     Object capturedEvent = eventCaptor.getValue();
-
     assertThat(capturedEvent).isInstanceOf(VideoApprovedEvent.class);
     VideoApprovedEvent approvedEvent = (VideoApprovedEvent) capturedEvent;
     assertThat(approvedEvent.videoId()).isEqualTo(videoId);
     assertThat(approvedEvent.reviewerId()).isEqualTo(reviewerId);
     assertThat(approvedEvent.timestamp()).isNotNull();
+
+    // Assert — also sent to search-service queue
+    verify(sqsTemplate).send(eq(SEARCH_MODERATION_EVENTS_QUEUE), any(VideoApprovedEvent.class));
   }
 
   @Test
-  void publishVideoRejected_sendsToSqs() {
+  void publishVideoRejected_sendsToBothQueues() {
     // Arrange
-    ReflectionTestUtils.setField(
-        moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    setQueues();
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
     String reason = "Inappropriate content";
@@ -63,23 +71,24 @@ class ModerationEventPublisherTest {
     // Act
     moderationEventPublisher.publishVideoRejected(videoId, reviewerId, reason);
 
-    // Assert
+    // Assert — sent to video-service queue
     verify(sqsTemplate).send(eq(MODERATION_EVENTS_QUEUE), eventCaptor.capture());
     Object capturedEvent = eventCaptor.getValue();
-
     assertThat(capturedEvent).isInstanceOf(VideoRejectedEvent.class);
     VideoRejectedEvent rejectedEvent = (VideoRejectedEvent) capturedEvent;
     assertThat(rejectedEvent.videoId()).isEqualTo(videoId);
     assertThat(rejectedEvent.reviewerId()).isEqualTo(reviewerId);
     assertThat(rejectedEvent.reason()).isEqualTo(reason);
     assertThat(rejectedEvent.timestamp()).isNotNull();
+
+    // Assert — also sent to search-service queue
+    verify(sqsTemplate).send(eq(SEARCH_MODERATION_EVENTS_QUEUE), any(VideoRejectedEvent.class));
   }
 
   @Test
   void publishVideoApproved_sqsFailure_rethrowsException() {
     // Arrange
-    ReflectionTestUtils.setField(
-        moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    setQueues();
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
 
@@ -95,8 +104,7 @@ class ModerationEventPublisherTest {
   @Test
   void publishVideoRejected_sqsFailure_rethrowsException() {
     // Arrange
-    ReflectionTestUtils.setField(
-        moderationEventPublisher, "moderationEventsQueue", MODERATION_EVENTS_QUEUE);
+    setQueues();
     UUID videoId = UUID.randomUUID();
     UUID reviewerId = UUID.randomUUID();
     String reason = "Inappropriate content";

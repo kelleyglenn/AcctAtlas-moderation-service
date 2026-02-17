@@ -48,6 +48,7 @@ app:
     video-events-queue: video-events
     user-events-queue: user-events
     moderation-events-queue: moderation-events
+    search-moderation-events-queue: search-moderation-events
   video-service:
     base-url: http://localhost:8082
   user-service:
