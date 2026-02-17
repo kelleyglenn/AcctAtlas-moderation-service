@@ -368,6 +368,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /moderation/queue/by-content/{contentId}:
+    get:
+      operationId: getModerationItemByContentId
+      summary: Look up moderation item by content ID
+      description: |
+        Returns the moderation queue item matching the given content ID and status.
+        Useful for checking the moderation state of a specific piece of content
+        without scanning the entire queue.
+        Requires MODERATOR or ADMIN trust tier.
+      tags: [Queue]
+      parameters:
+        - name: contentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The content ID (e.g., video ID) to look up
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ModerationStatus'
+          description: "Filter by status (default: PENDING)"
+      responses:
+        '200':
+          description: Matching moderation item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /moderation/queue/stats:
     get:
       operationId: getQueueStats

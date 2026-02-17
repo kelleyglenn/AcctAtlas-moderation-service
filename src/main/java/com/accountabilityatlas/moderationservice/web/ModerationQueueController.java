@@ -75,6 +75,19 @@ public class ModerationQueueController implements QueueApi {
   }
 
   @Override
+  public ResponseEntity<com.accountabilityatlas.moderationservice.web.model.ModerationItem>
+      getModerationItemByContentId(
+          UUID contentId,
+          com.accountabilityatlas.moderationservice.web.model.ModerationStatus status) {
+    ModerationStatus domainStatus =
+        status != null ? ModerationStatus.valueOf(status.name()) : ModerationStatus.PENDING;
+    return moderationService
+        .findByContentId(contentId, domainStatus)
+        .map(item -> ResponseEntity.ok(toApiModerationItem(item)))
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  @Override
   public ResponseEntity<ModerationItemDetail> getModerationItem(UUID id) {
     ModerationItem item = moderationService.getItem(id);
     return ResponseEntity.ok(toApiModerationItemDetail(item));

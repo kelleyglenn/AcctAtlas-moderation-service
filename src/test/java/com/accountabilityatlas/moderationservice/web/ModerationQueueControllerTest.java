@@ -612,6 +612,76 @@ class ModerationQueueControllerTest {
   }
 
   // ============================================
+  // getModerationItemByContentId tests
+  // ============================================
+
+  @Test
+  void getModerationItemByContentId_found_returnsItem() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, contentId, ModerationStatus.PENDING);
+    when(moderationService.findByContentId(contentId, ModerationStatus.PENDING))
+        .thenReturn(java.util.Optional.of(item));
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/by-content/{contentId}", contentId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(itemId.toString()))
+        .andExpect(jsonPath("$.contentId").value(contentId.toString()))
+        .andExpect(jsonPath("$.status").value("PENDING"));
+  }
+
+  @Test
+  void getModerationItemByContentId_notFound_returns404() throws Exception {
+    // Arrange
+    UUID contentId = UUID.randomUUID();
+    when(moderationService.findByContentId(contentId, ModerationStatus.PENDING))
+        .thenReturn(java.util.Optional.empty());
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/by-content/{contentId}", contentId)
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void getModerationItemByContentId_customStatus_usesProvidedStatus() throws Exception {
+    // Arrange
+    UUID itemId = UUID.randomUUID();
+    UUID contentId = UUID.randomUUID();
+    ModerationItem item = createModerationItem(itemId, contentId, ModerationStatus.APPROVED);
+    when(moderationService.findByContentId(contentId, ModerationStatus.APPROVED))
+        .thenReturn(java.util.Optional.of(item));
+
+    // Act & Assert
+    mockMvc
+        .perform(
+            get("/moderation/queue/by-content/{contentId}", contentId)
+                .param("status", "APPROVED")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("APPROVED"));
+  }
+
+  @Test
+  void getModerationItemByContentId_invalidStatus_returns400() throws Exception {
+    UUID contentId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            get("/moderation/queue/by-content/{contentId}", contentId)
+                .param("status", "GARBAGE")
+                .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
+        .andExpect(status().isBadRequest());
+  }
+
+  // ============================================
   // Helper methods
   // ============================================
 
