@@ -6,6 +6,7 @@ plugins {
     id 'com.diffplug.spotless'
     id 'net.ltgt.errorprone'
     id 'jacoco'
+    id 'org.sonarqube'
     id 'org.openapi.generator'
 }
 
@@ -150,6 +151,16 @@ jacocoTestCoverageVerification {
 }
 
 check.dependsOn jacocoTestCoverageVerification
+
+// ---- SonarCloud ----
+sonar {
+    properties {
+        property 'sonar.projectKey', 'kelleyglenn_AcctAtlas-moderation-service'
+        property 'sonar.projectName', 'AcctAtlas-moderation-service'
+        property 'sonar.organization', 'kelleyglenn'
+        property 'sonar.host.url', 'https://sonarcloud.io'
+    }
+}
 
 // ---- Jib ----
 jib {
