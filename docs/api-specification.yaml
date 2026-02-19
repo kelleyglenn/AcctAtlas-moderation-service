@@ -857,7 +857,7 @@ components:
           type: array
           items:
             type: string
-            enum: [POLICE, GOVERNMENT, BUSINESS, CITIZEN]
+            enum: [POLICE, GOVERNMENT, BUSINESS, CITIZEN, SECURITY]
           description: Types of participants in the encounter
         videoDate:
           type: string
@@ -866,7 +866,7 @@ components:
           description: When the incident occurred
       examples:
         - amendments: ["FIRST", "FOURTH"]
-          participants: ["POLICE", "CITIZEN"]
+          participants: ["POLICE", "SECURITY"]
           videoDate: "2025-01-15"
 
     AddLocationRequest:
