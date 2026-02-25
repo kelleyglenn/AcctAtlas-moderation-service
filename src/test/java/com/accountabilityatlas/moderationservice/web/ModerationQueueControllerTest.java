@@ -265,7 +265,7 @@ class ModerationQueueControllerTest {
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_MODERATOR"))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.pending").value(0))
-        .andExpect(jsonPath("$.avgReviewTimeMinutes").isEmpty());
+        .andExpect(jsonPath("$.avgReviewTimeMinutes").doesNotExist());
   }
 
   // ============================================
