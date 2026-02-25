@@ -1,28 +1,31 @@
+server:
+  port: 8085
+
 spring:
   application:
     name: moderation-service
-
-  datasource:
-    url: jdbc:postgresql://localhost:5432/moderation_service
-    username: moderation_service
-    password: local_dev
-    driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: moderation
     open-in-view: false
-
   flyway:
     enabled: true
     schemas:
       - moderation
-    default-schema: moderation
-
+    locations:
+      - classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${USER_SERVICE_JWKS_URL:http://localhost:8081/.well-known/jwks.json}
   cloud:
     aws:
       region:
@@ -31,17 +34,18 @@ spring:
         access-key: ${AWS_ACCESS_KEY_ID:test}
         secret-key: ${AWS_SECRET_ACCESS_KEY:test}
 
-server:
-  port: 8085
-
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: when-authorized
+
+logging:
+  level:
+    com.accountabilityatlas: DEBUG
 
 app:
   sqs:
@@ -50,6 +54,6 @@ app:
     moderation-events-queue: moderation-events
     search-moderation-events-queue: search-moderation-events
   video-service:
-    base-url: http://localhost:8082
+    base-url: ${VIDEO_SERVICE_URL:http://localhost:8082}
   user-service:
-    base-url: http://localhost:8080
+    base-url: ${USER_SERVICE_URL:http://localhost:8081}
