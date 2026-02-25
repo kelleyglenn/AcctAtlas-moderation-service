@@ -50,6 +50,6 @@ app:
     moderation-events-queue: moderation-events
     search-moderation-events-queue: search-moderation-events
   video-service:
-    base-url: http://localhost:8082
+    base-url: ${VIDEO_SERVICE_URL:http://localhost:8082}
   user-service:
-    base-url: http://localhost:8080
+    base-url: ${USER_SERVICE_URL:http://localhost:8081}

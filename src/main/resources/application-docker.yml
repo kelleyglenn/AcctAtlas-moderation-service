@@ -10,4 +10,4 @@ app:
   video-service:
     base-url: http://video-service:8082
   user-service:
-    base-url: http://user-service:8080
+    base-url: http://user-service:8081
